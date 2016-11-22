@@ -39,45 +39,51 @@
 static usbd_device *usbd_dev;
 
 static const uint8_t hid_report_descriptor[] = {
-	0x05, 0x01, /* USAGE_PAGE (Generic Desktop)         */
-	0x09, 0x02, /* USAGE (Mouse)                        */
-	0xa1, 0x01, /* COLLECTION (Application)             */
-	0x09, 0x01, /*   USAGE (Pointer)                    */
-	0xa1, 0x00, /*   COLLECTION (Physical)              */
-	0x05, 0x09, /*     USAGE_PAGE (Button)              */
-	0x19, 0x01, /*     USAGE_MINIMUM (Button 1)         */
-	0x29, 0x03, /*     USAGE_MAXIMUM (Button 3)         */
-	0x15, 0x00, /*     LOGICAL_MINIMUM (0)              */
-	0x25, 0x01, /*     LOGICAL_MAXIMUM (1)              */
-	0x95, 0x03, /*     REPORT_COUNT (3)                 */
-	0x75, 0x01, /*     REPORT_SIZE (1)                  */
-	0x81, 0x02, /*     INPUT (Data,Var,Abs)             */
-	0x95, 0x01, /*     REPORT_COUNT (1)                 */
-	0x75, 0x05, /*     REPORT_SIZE (5)                  */
-	0x81, 0x01, /*     INPUT (Cnst,Ary,Abs)             */
-	0x05, 0x01, /*     USAGE_PAGE (Generic Desktop)     */
-	0x09, 0x30, /*     USAGE (X)                        */
-	0x09, 0x31, /*     USAGE (Y)                        */
-	0x09, 0x38, /*     USAGE (Wheel)                    */
-	0x15, 0x81, /*     LOGICAL_MINIMUM (-127)           */
-	0x25, 0x7f, /*     LOGICAL_MAXIMUM (127)            */
-	0x75, 0x08, /*     REPORT_SIZE (8)                  */
-	0x95, 0x03, /*     REPORT_COUNT (3)                 */
-	0x81, 0x06, /*     INPUT (Data,Var,Rel)             */
-	0xc0,       /*   END_COLLECTION                     */
-	0x09, 0x3c, /*   USAGE (Motion Wakeup)              */
-	0x05, 0xff, /*   USAGE_PAGE (Vendor Defined Page 1) */
-	0x09, 0x01, /*   USAGE (Vendor Usage 1)             */
-	0x15, 0x00, /*   LOGICAL_MINIMUM (0)                */
-	0x25, 0x01, /*   LOGICAL_MAXIMUM (1)                */
-	0x75, 0x01, /*   REPORT_SIZE (1)                    */
-	0x95, 0x02, /*   REPORT_COUNT (2)                   */
-	0xb1, 0x22, /*   FEATURE (Data,Var,Abs,NPrf)        */
-	0x75, 0x06, /*   REPORT_SIZE (6)                    */
-	0x95, 0x01, /*   REPORT_COUNT (1)                   */
-	0xb1, 0x01, /*   FEATURE (Cnst,Ary,Abs)             */
-	0xc0        /* END_COLLECTION                       */
+    0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
+    0x15, 0x00,                    // LOGICAL_MINIMUM (0)
+    0x09, 0x04,                    // USAGE (Joystick)
+    0xa1, 0x01,                    // COLLECTION (Application)
+    0x05, 0x02,                    //   USAGE_PAGE (Simulation Controls)
+    0x09, 0xbb,                    //   USAGE (Throttle)
+    0x15, 0x81,                    //   LOGICAL_MINIMUM (-127)
+    0x25, 0x7f,                    //   LOGICAL_MAXIMUM (127)
+    0x75, 0x08,                    //   REPORT_SIZE (8)
+    0x95, 0x01,                    //   REPORT_COUNT (1)
+    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
+    0x05, 0x01,                    //   USAGE_PAGE (Generic Desktop)
+    0x09, 0x01,                    //   USAGE (Pointer)
+    0xa1, 0x00,                    //   COLLECTION (Physical)
+    0x09, 0x30,                    //     USAGE (X)
+    0x09, 0x31,                    //     USAGE (Y)
+    0x95, 0x02,                    //     REPORT_COUNT (2)
+    0x81, 0x02,                    //     INPUT (Data,Var,Abs)
+    0xc0,                          //   END_COLLECTION
+    0x09, 0x39,                    //   USAGE (Hat switch)
+    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+    0x25, 0x03,                    //   LOGICAL_MAXIMUM (3)
+    0x35, 0x00,                    //   PHYSICAL_MINIMUM (0)
+    0x46, 0x0e, 0x01,              //   PHYSICAL_MAXIMUM (270)
+    0x65, 0x14,                    //   UNIT (Eng Rot:Angular Pos)
+    0x75, 0x04,                    //   REPORT_SIZE (4)
+    0x95, 0x01,                    //   REPORT_COUNT (1)
+    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
+    0x05, 0x09,                    //   USAGE_PAGE (Button)
+    0x19, 0x01,                    //   USAGE_MINIMUM (Button 1)
+    0x29, 0x04,                    //   USAGE_MAXIMUM (Button 4)
+    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+    0x25, 0x01,                    //   LOGICAL_MAXIMUM (1)
+    0x75, 0x01,                    //   REPORT_SIZE (1)
+    0x95, 0x04,                    //   REPORT_COUNT (4)
+    0x55, 0x00,                    //   UNIT_EXPONENT (0)
+    0x65, 0x00,                    //   UNIT (None)
+    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
+    0xc0                           // END_COLLECTION
 };
+
+//byte 1: throttle
+//byte 2: X
+//byte 3: Y
+//byte 4: First 4 bits: POV hat. Last 4 bits: buttons
 
 static const struct {
 	struct usb_hid_descriptor hid_descriptor;
@@ -199,7 +205,7 @@ const struct usb_device_descriptor dev_descr = {
 
 static const char *usb_strings_ascii[] = {
 	"Black Sphere Technologies",
-	"HID Demo",
+	"JOYSTICK",
 	"DEMO",
 };
 
@@ -322,23 +328,26 @@ int main(void)
 void __attribute__((weak))
 usbhid_target_accel_get(int16_t *out_x, int16_t *out_y, int16_t *out_z)
 {
-	(void)out_y;
-	(void)out_z;
 
 	static int x = 0;
 	static int dir = 1;
 
 	if (out_x != NULL) {
 		*out_x = dir;
+		*out_z = dir;
 	}
 
 	x += dir;
-	if (x > 30) {
+	if (x > 60) {
 		dir = -dir;
+		*out_y = 0xAA;
 	}
-	if (x < -30) {
+	if (x < -60) {
 		dir = -dir;
+		*out_y = 0x00;
 	}
+	
+	
 }
 
 void sys_tick_handler(void)
@@ -348,10 +357,10 @@ void sys_tick_handler(void)
 
 	usbhid_target_accel_get(&x, &y, &z);
 
-	buf[0] = 0;
-	buf[1] = x;
-	buf[2] = y;
-	buf[3] = z;
+	buf[0] = x;
+	buf[1] = y;
+	buf[2] = z;
+	buf[3] = 0b01011011;
 
 	usbd_ep_write_packet(usbd_dev, 0x81, buf, sizeof(buf));
 }
