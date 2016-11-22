@@ -1,0 +1,12 @@
+reset halt
+flash probe 0
+stm32x mass_erase 0
+flash write_bank 0 main.bin 0
+reset halt
+
+
+For each recompilation:
+reset halt
+stm32x mass_erase 0
+flash write_bank 0 main.bin 0
+reset halt

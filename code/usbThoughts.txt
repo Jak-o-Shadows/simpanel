@@ -1,0 +1,76 @@
+
+
+
+
+(3:56:43 PM) zyp: hint: USB is not an AF mode, enabling the USB controller automatically takes control over the DM/DP pins
+(3:57:09 PM) zyp: on F1
+(3:57:09 PM) Jak_o_Shadows: Oh, righto
+(3:57:22 PM) zyp: it varies depending on the chip family
+(3:57:56 PM) Jak_o_Shadows: I'm trying out that example, but I'm getting a blocking handler :(
+(3:58:50 PM) Jak_o_Shadows: and dmesg is telling me a bunch of stuff about the device descriptor not being read properly->not being able to enumerate the device
+(3:58:51 PM) zyp: in that case why aren't you checking what caused it, instead of guessing blindly?
+(3:59:37 PM) Jak_o_Shadows: I don't have one of the exact boards used in the example. So I was going to check that first.
+(3:59:47 PM) Jak_o_Shadows: Which is silly, cause the USB only exists on those two pins in the F1
+(4:00:20 PM) zyp: well, dmesg isn't going to be very helpful if the device crashes/deadlocks, all the computer can see is that you've connected a 1k5 pullup to the DP pin, which signals the host that something is connected
+(4:00:35 PM) zyp: and host then tries talking to your device and there's no reply
+(4:00:54 PM) Jak_o_Shadows: I also have gdb
+(4:01:08 PM) zyp: anyway, start by checking ipsr in the debugger to see which handler it's in
+(4:01:37 PM) zyp: «info registers» in gdb, ipsr is the lower bits of xpsr/cpsr
+(4:02:36 PM) zyp: usually when your chip is crashing it's 03, which is hardfault, but considering you've got systick handler commented out, I'd start by verifying it's not getting stuck there
+(4:04:39 PM) Jak_o_Shadows: So the usb hub I had the stlink in is no longer working...
+(4:05:16 PM) Jak_o_Shadows: SO that computer's rebooting
+(4:05:17 PM) zyp: haha, fun
+(4:05:58 PM) zyp: when I wrote my usb stack, I also crashed the host's usb stack multiple times, they don't always cope well with misbehaving devices
+(4:06:56 PM) zyp: if it's systick it's getting stuck in, ipsr would be 0x0f
+(4:07:13 PM) Jak_o_Shadows: I think it was 0000
+(4:07:24 PM) Jak_o_Shadows: but that was several unplugs with the chip not running, so I was going to check it again
+(4:07:36 PM) zyp: no it weren't
+(4:08:01 PM) zyp: ispr should never be zero in blocking_handler
+(4:08:03 PM) Jak_o_Shadows: xPSR was something like 0x100000
+(4:08:18 PM) zyp: I doubt that
+(4:09:20 PM) zyp: ipsr contains the number of the currently active handler/ISR
+(4:09:32 PM) zyp: 0 indicates thread mode, i.e. no active handler
+(4:09:52 PM) zyp: and thread mode should never end up in blocking_handler
+(4:12:11 PM) Jak_o_Shadows: Yeah. As I said, the state was probably messed up by something I was looking at
+(4:12:15 PM) Jak_o_Shadows: It's 0x03
+(4:12:33 PM) zyp: okay, so that's an actual hardfault
+(4:12:48 PM) zyp: now you check SCB_CFSR to see which kind of fault caused it
+(4:13:37 PM) Jak_o_Shadows: sorry?
+(4:13:39 PM) zyp: quickest way is «x/wx 0xe000ed28»
+
+(4:14:26 PM) Jak_o_Shadows: 0x47700080
+(4:14:34 PM) Jak_o_Shadows: So I'm looking at a location in memory yeah?
+(4:14:45 PM) Jak_o_Shadows: Related to what?
+(4:14:52 PM) zyp: http://infocenter.arm.com/help/topic/com.arm.doc.dui0552a/Cihcfefj.html
+(4:15:06 PM) zyp: uh, that's 7 bits set, that doesn't sound right
+(4:15:37 PM) Jak_o_Shadows: My mistake. Missed a 0
+(4:15:44 PM) Jak_o_Shadows: It's 0x00008200
+(4:16:06 PM) Jak_o_Shadows: I forget that it's ARM, and just try to look in the stm manuals sometimes
+(4:16:07 PM) zyp: BFARVALID PRECISERR
+(4:17:06 PM) zyp: so something tried accessing an invalid addr
+(4:17:24 PM) zyp: SCB_BFAR (0xe000ed38) will tell you which, but I'm not sure how useful that is
+(4:17:41 PM) zyp: doing a backtrace is usually better for that kind of errors
+(4:18:09 PM) zyp: if your debugger can reliably backtrace from a fault handler
+(4:19:43 PM) zyp: bus faults are usually caused by corrupt pointers and whatnot, and BFAR would just contain the corrupt addr, which is not so useful in figuring out where it came from
+(4:19:56 PM) Jak_o_Shadows: If i go up a few levels, it says it's a memcpy
+(4:20:04 PM) Jak_o_Shadows: I think
+(4:20:11 PM) zyp: can you just pastebin the whole backtrace?
+
+
+(gdb) where
+#0  blocking_handler () at ../../cm3/vector.c:104
+#1  <signal handler called>
+#2  0x08001b3c in ?? ()
+#3  0x08000ade in build_config_descriptor (usbd_dev=<optimized out>, len=9, buf=<optimized out>,
+    index=<optimized out>) at ../../usb/usb_standard.c:73
+#4  usb_standard_get_descriptor (usbd_dev=<optimized out>, req=<optimized out>, buf=<optimized out>,
+    len=0x800167c <config>) at ../../usb/usb_standard.c:164
+#5  0x08000712 in usb_control_setup_read (usbd_dev=0x200000a0 <st_usbfs_dev>,
+    req=0x200000d0 <st_usbfs_dev+48>) at ../../usb/usb_control.c:178
+#6  0x0800141c in st_usbfs_poll (dev=0x200000a0 <st_usbfs_dev>) at ../common/st_usbfs_core.c:245
+#7  0x08000282 in main () at main.c:202
+
+
+Descriptor:
+	Tells the computer what this device is. e.g. it is a joystick with 2 analogue values and 12 digital buttons.
+	
