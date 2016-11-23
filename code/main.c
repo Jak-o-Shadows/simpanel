@@ -20,6 +20,12 @@
  */
 
 #include <stdlib.h>
+#include <unicore-mx/stm32/rcc.h>
+#include <unicore-mx/stm32/gpio.h>
+#include <unicore-mx/stm32/adc.h>
+
+
+
 #include <unicore-mx/cm3/nvic.h>
 #include <unicore-mx/cm3/systick.h>
 #include <unicore-mx/usbd/usbd.h>
@@ -37,6 +43,10 @@
 #endif
 
 static usbd_device *usbd_dev;
+
+uint8_t status = 0;
+uint8_t joy = 0x00;
+uint8_t joy2 = 0x00;
 
 static const uint8_t hid_report_descriptor[] = {
     0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
@@ -70,10 +80,12 @@ static const uint8_t hid_report_descriptor[] = {
     0x05, 0x09,                    //   USAGE_PAGE (Button)
     0x19, 0x01,                    //   USAGE_MINIMUM (Button 1)
     0x29, 0x04,                    //   USAGE_MAXIMUM (Button 4)
+//    0x29, 0x3c,                    //   USAGE_MAXIMUM (Button 60)
     0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
     0x25, 0x01,                    //   LOGICAL_MAXIMUM (1)
     0x75, 0x01,                    //   REPORT_SIZE (1)
     0x95, 0x04,                    //   REPORT_COUNT (4)
+//    0x95, 0x3c,                    //   REPORT_COUNT (60)
     0x55, 0x00,                    //   UNIT_EXPONENT (0)
     0x65, 0x00,                    //   UNIT (None)
     0x81, 0x02,                    //   INPUT (Data,Var,Abs)
@@ -306,8 +318,45 @@ static void hid_set_config(usbd_device *dev,
 void __attribute__((weak))
 usbhid_target_usbd_after_init_and_before_first_poll(void) { /* empty */ }
 
+
+void nonUSBSetup(void){
+	
+	//A button input
+	rcc_periph_clock_enable(RCC_GPIOA);
+	gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO8);
+	
+	//An ADC Input
+	//For A7 : ADC1 (ADC12????), IN7
+	rcc_periph_clock_enable(RCC_ADC1);
+	adc_power_off(ADC1); //turn ADC off during config
+	//configure ADC1 for single conversion
+	adc_disable_scan_mode(ADC1);
+	adc_set_single_conversion_mode(ADC1);
+	adc_disable_external_trigger_regular(ADC1);
+	adc_set_right_aligned(ADC1);
+	//Set sample time?
+	adc_set_sample_time_on_all_channels(ADC1, ADC_SMPR_SMP_28DOT5CYC);
+	//turn it on
+	adc_power_on(ADC1);
+	//wait for it to turn on
+	for (int i=0;i<800000;i++){
+		__asm__("nop");
+	}
+	
+	adc_reset_calibration(ADC1);
+	adc_calibration(ADC1);
+	
+	
+}
+
+
+
 int main(void)
 {
+	
+	nonUSBSetup();
+	
+	
 	usbhid_target_init();
 
 	usbd_dev = usbd_init(usbhid_target_usb_driver(), &dev_descr,
@@ -334,7 +383,6 @@ usbhid_target_accel_get(int16_t *out_x, int16_t *out_y, int16_t *out_z)
 
 	if (out_x != NULL) {
 		*out_x = dir;
-		*out_z = dir;
 	}
 
 	x += dir;
@@ -350,17 +398,77 @@ usbhid_target_accel_get(int16_t *out_x, int16_t *out_y, int16_t *out_z)
 	
 }
 
+void pollSensors(uint8_t *buttons){
+	uint16_t joyRaw;
+	//read buttons
+	uint16_t GPIOAInput = gpio_port_read(GPIOA);
+	status = 0x00;
+	if (GPIOAInput & GPIO8){
+		//button has been pressed
+		status = 0xFF;
+	}
+	
+	//read ADC
+	uint8_t channel_array[16]; //array of channels to read this time
+	channel_array[0] = 7; //want to read channel 7 -(as it is PA7)
+	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
+	//start the ADC conversion directly (not trigger mode)
+	adc_start_conversion_direct(ADC1);
+	//Wait until it's finished
+	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
+	//Hence read it
+	joyRaw = ADC_DR(ADC1);
+	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	//Now, the reading goes from 0->255. With a joystick value of -127 -> 127.
+	//Windows interprets:
+	//		0->127 as 0->127
+	//		128->255 as -127 -> -1 (or 0)
+	//There is obviously a discontinuity there -> hence remap and remove it
+	if (joy <= 127){
+		joy = joy + 127;
+	} else{
+		joy = joy - 127;
+	}
+	
+	//read channel 6 - PA6
+	channel_array[0] = 6; //want to read channel 6 -(as it is PA6)
+	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
+	//start the ADC conversion directly (not trigger mode)
+	adc_start_conversion_direct(ADC1);
+	//Wait until it's finished
+	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
+	//Hence read it
+	joyRaw = ADC_DR(ADC1);
+	joy2 = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	//Now, the reading goes from 0->255. With a joystick value of -127 -> 127.
+	//Windows interprets:
+	//		0->127 as 0->127
+	//		128->255 as -127 -> -1 (or 0)
+	//There is obviously a discontinuity there -> hence remap and remove it
+	if (joy2 <= 127){
+		joy2 = joy2 + 127;
+	} else{
+		joy2 = joy2 - 127;
+	}
+	
+	
+}
+
+
 void sys_tick_handler(void)
 {
 	int16_t x = 0, y = 0, z = 0;
 	uint8_t buf[4];
+	
+	uint8_t buttons = 0x00;
+	pollSensors(&buttons);
 
 	usbhid_target_accel_get(&x, &y, &z);
 
 	buf[0] = x;
-	buf[1] = y;
-	buf[2] = z;
-	buf[3] = 0b01011011;
+	buf[1] = joy2;
+	buf[2] = joy;
+	buf[3] = status;
 
 	usbd_ep_write_packet(usbd_dev, 0x81, buf, sizeof(buf));
 }
