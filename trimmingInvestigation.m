@@ -10,14 +10,14 @@ clc
 %%
 
 %Number of options to look at for R5 and trimmer pot X
-numR5 = 100;
+numR5 = 11;
 numX = 100;
 numY = 20;
 %max value/resistor of the two pots
-N = 5e5; %ohm
-M = 5e5; %ohm
+N = 100e3; %ohm  - max value of the trim one
+M = 5e3; %ohm - max value of the main one
 %The standalone resistor
-R5 = linspace(1, 10e5, numR5)';
+R5 = linspace(1e3, 10e3, numR5)';
 R5 = repmat(R5, 1, numX);
 
 x = linspace(0, 1, numX);
@@ -30,6 +30,7 @@ fname = 'trimInvestigation.gif';
 
 for index=1:length(yList)
     y = yList(index);
+    fprintf('y=%0.3f\n', y);
     
     
     R1 = x*N;
@@ -54,7 +55,7 @@ for index=1:length(yList)
     title(['Effect of varying trimmer value for main pot value y = ', num2str(y)]);
     zlim([0, Vsource])
     xlim([0, 1]);
-    ylim([0, 10e5]);
+    ylim([0, max(max(R5))]);
     view(45, 30);
     saveas(gcf, ['trim', num2str(index), '.png']);
     %%Save it as a gif
@@ -67,6 +68,13 @@ for index=1:length(yList)
     else
         imwrite(imind, cm, fname, 'gif', 'WriteMode', 'append');
     end
+    
+    
+    %% Find the value which gives the best range
+    %For each X, want the value of R5 that has the biggest range
+    range = VBG(:, 1) - VBG(:, end);
+    [maxRange, maxRangeIndex] = max(range);
+    fprintf('\t Max range of %0.2f V for R5 = %0.2f ohm\n', maxRange, Y(maxRangeIndex));
     
 end
 

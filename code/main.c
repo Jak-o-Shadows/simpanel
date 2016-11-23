@@ -324,6 +324,7 @@ void nonUSBSetup(void){
 	//A button input
 	rcc_periph_clock_enable(RCC_GPIOA);
 	gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO8);
+	gpio_set(GPIOA, GPIO8); //enable pull UP resistors
 	
 	//An ADC Input
 	//For A7 : ADC1 (ADC12????), IN7
@@ -403,7 +404,7 @@ void pollSensors(uint8_t *buttons){
 	//read buttons
 	uint16_t GPIOAInput = gpio_port_read(GPIOA);
 	status = 0x00;
-	if (GPIOAInput & GPIO8){
+	if (!(GPIOAInput & GPIO8)){
 		//button has been pressed
 		status = 0xFF;
 	}
