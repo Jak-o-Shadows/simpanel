@@ -1,0 +1,72 @@
+
+
+HID to real-world
+
+
+POV HAT:
+
+    0x09, 0x39,                    //   USAGE (Hat switch)
+    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+    0x25, 0x03,                    //   LOGICAL_MAXIMUM (3)
+    0x35, 0x00,                    //   PHYSICAL_MINIMUM (0)
+    0x46, 0x0e, 0x01,              //   PHYSICAL_MAXIMUM (270)
+    0x65, 0x14,                    //   UNIT (Eng Rot:Angular Pos)
+    0x75, 0x04,                    //   REPORT_SIZE (4)
+    0x95, 0x01,                    //   REPORT_COUNT (1)
+    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
+
+
+a pov hat is 4 bits.
+0x0: 0b0000: Up
+0x1: 0b0001: Right
+0x2: 0b0010: Down
+0x3: 0b0011: Left
+0x4: 0b0100: Nothing
+0x5: 0b0101: Nothing
+0x6: 0b0110: Nothing
+0x7: 0b0111: Nothing
+0x8: 0b1000: Nothing
+0x9: 0b1001: Nothing
+0xA: 0b1010: Nothing
+0xB: 0b1011: Nothing
+0xC: 0b1100: Nothing
+0xD: 0b1101: Nothing
+0xE: 0b1110: Nothing
+0xF: 0b1111: Nothing
+
+
+
+
+
+
+Buttons:
+
+USAGE_PAGE (Button)
+    0x19, 0x01,                    //   USAGE_MINIMUM (Button 1)
+    0x29, 0x04,                    //   USAGE_MAXIMUM (Button 4)
+    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+    0x25, 0x01,                    //   LOGICAL_MAXIMUM (1)
+    0x75, 0x01,                    //   REPORT_SIZE (1)
+    0x95, 0x04,                    //   REPORT_COUNT (4)
+    0x55, 0x00,                    //   UNIT_EXPONENT (0)
+    0x65, 0x00,                    //   UNIT (None)
+    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
+
+
+
+
+0x1: Button 1
+0x2: Button 2
+0x3: Button 1 & 2
+0x4: Button 3
+Hence: Buttons are set when their bit is set
+ie. zeroth bit >= button 1 set
+ie. 1st bit => button 2 set
+
+
+
+
+
+
+
+
