@@ -1,0 +1,92 @@
+
+
+
+Analog joystick on breakout board
+
+PCB outer dimensions: 26.2mm x 34.23mm
+Mounting holes: ~~3mm, 0.12"
+Lengthwise hole separation: 23.2mm
+Width hole separation: 17.6mm
+Height from bottom of pcb to top of pot. container: 14mm
+Length of attachment knob: ~6.7mm (would not be able to cover all of that, as would not be able to pivot at the bottom)
+Reasonably height to top mounting panel: ~~20mm
+Height solder pertrudes above(below) the base of the PCB: 4mm
+Joystick is centered on the hole mounting pattern
+Connecting cables are able to fit through a ~7mm diam hole EASILY
+Check connecting cable plug end dimension!
+
+
+PSP joystick on breakout board
+
+PCB outer dimensions: 25.6mm x 25.8mm
+Mounting holes: ~~2.8mm
+Mounting hole separation: 17.75 +- 0.05
+Connecting cables able to fit through a ~6mm diam hole EASILY
+Check connecting cable plug end dimension!
+
+
+Red-top pushbuttons
+
+With thread diam: 11.5mm
+No thread diam: 10.6mm
+Height above panel (button out): ~~10.5mm
+Height above panel (button depressed): ~7.2mm
+Button diam: 12mm
+Flare-end diam: ~~17.88mm
+
+
+Lightup toggle-switch
+
+Square bit: 16.8mm x 12.15mm
+Square bit height: 9.6mm
+Flange diam: 23mm
+Round bit diam (below flange): 20mm
+Key on round bit: 2mm wide, 1mm deep? high? extruded?
+Snap-lock-in-bit-things: 4.4mm wide, bulge out 5.5mm 
+
+
+Guarded toggle-switch
+
+With thread diam: 11.85 +- 0.05 ish
+Guard details:
+Guard plate length: 40.7mm ~= 1.6"
+Guard plate width: 17.15mm ==0.675"
+Guard plate hole diam: 12.12mm
+Guard plate hole distance from back (not centre of hole): 21mm
+
+
+LED Bar Display
+
+10 segments
+1" long
+0.4" wide
+
+
+Rotary Potentiometers
+Threaded diam: 6.55mm
+Threaded length: 6.25mm
+Locking pin width: 2.6mm
+Locking pin thickness: 1.1mm
+Locking pin outer radius: 8.5mm
+Washer thickness: 0.27mm
+Washer inner diam: 7.12mm ~=0.28"
+Washer outer diam: 11.52mm ~= 0.453"
+Nut thickness: 1.93 mm ~= 0.075"
+
+
+DB15 female
+
+Panel size: 0.5" x 39.41mm (1.55")
+Hole size: M3 will do
+Hole spacing: 1.2"
+
+
+
+
+
+
+
+
+
+
+
