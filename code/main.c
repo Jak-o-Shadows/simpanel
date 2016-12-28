@@ -49,127 +49,21 @@ uint8_t joy = 0x00;
 uint8_t joy2 = 0x00;
 
 static const uint8_t hid_report_descriptor[] = {
-/*     0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
-    0x15, 0x00,                    // LOGICAL_MINIMUM (0)
-    0x09, 0x04,                    // USAGE (Joystick)
-    0xa1, 0x01,                    // COLLECTION (Application)
-    0x05, 0x02,                    //   USAGE_PAGE (Simulation Controls)
-    0x09, 0xbb,                    //   USAGE (Throttle)
-    0x15, 0x81,                    //   LOGICAL_MINIMUM (-127)
-    0x25, 0x7f,                    //   LOGICAL_MAXIMUM (127)
-    0x75, 0x08,                    //   REPORT_SIZE (8)
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0x95, 0x01,                    //   REPORT_COUNT (1)
-    0x05, 0x01,                    //   USAGE_PAGE (Generic Desktop)
-    0x09, 0x01,                    //   USAGE (Pointer)
-    0xa1, 0x00,                    //   COLLECTION (Physical)
-    0x09, 0x30,                    //     USAGE (X)								
-    0x09, 0x31,                    //     USAGE (Y)								
-    //0x09, 0x32,                    //     USAGE (Z)								
-    //0x09, 0x35,                    //     USAGE (Rz)							
-    //0x09, 0x34,                    //     USAGE (Ry)							
-    //0x09, 0x36,                    //     USAGE (Slider)						
-    //0x09, 0x37,                    //     USAGE (Dial)							
-    //0x09, 0x38,                    //     USAGE (Wheel)							
-    //0x09, 0x40,                    //     USAGE (Vx)							
-    //0x09, 0x41,                    //     USAGE (Vy)							
-    //0x95, 0x0a,                    //     REPORT_COUNT (10)
-	0x95, 0x02,						//		REPORT_COUNT (2)
-    0x81, 0x02,                    //     INPUT (Data,Var,Abs)
-    0xc0,                          //   END_COLLECTION
-    0x09, 0x39,                    //   USAGE (Hat switch)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x25, 0x03,                    //   LOGICAL_MAXIMUM (3)
-    0x35, 0x00,                    //   PHYSICAL_MINIMUM (0)
-    0x46, 0x0e, 0x01,              //   PHYSICAL_MAXIMUM (270)
-    0x65, 0x14,                    //   UNIT (Eng Rot:Angular Pos)
-    0x75, 0x04,                    //   REPORT_SIZE (4)
-    0x95, 0x01,                    //   REPORT_COUNT (1)
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0x75, 0x04,                    //   REPORT_SIZE (4)
-    0x95, 0x01,                    //   REPORT_COUNT (1)
-    0x81, 0x03,                    //   INPUT (Cnst,Var,Abs)					
-    0x05, 0x09,                    //   USAGE_PAGE (Button)
-    0x19, 0x01,                    //   USAGE_MINIMUM (Button 1)
-    0x29, 0x10,                    //   USAGE_MAXIMUM (Button 16)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x25, 0x01,                    //   LOGICAL_MAXIMUM (1)
-    0x75, 0x01,                    //   REPORT_SIZE (1)
-    0x95, 0x10,                    //   REPORT_COUNT (16)
-    0x55, 0x00,                    //   UNIT_EXPONENT (0)
-    0x65, 0x00,                    //   UNIT (None)
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)					
-    0xc0                           // END_COLLECTION
-}; */
-//byte 1: X
-//byte 2: Y
-//byte 3: Z
-//byte 4: Rz
-//byte 5: Ry
-//byte 6: Slider
-//byte 7: Dial
-//byte 8: Wheel
-//byte 9: Vx
-//byte 10: Vy
-//byte 11: First 4 bits: POV hat. Last 4 bits: nothing
-//byte 11->(11+7)		11->18:	buttons. Buttons
     0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
-    0x15, 0x00,                    // LOGICAL_MINIMUM (0)
     0x09, 0x04,                    // USAGE (Joystick)
     0xa1, 0x01,                    // COLLECTION (Application)
-    0x05, 0x02,                    //   USAGE_PAGE (Simulation Controls)
-    0x09, 0xbb,                    //   USAGE (Throttle)
-    0x15, 0x81,                    //   LOGICAL_MINIMUM (-127)
-    0x25, 0x7f,                    //   LOGICAL_MAXIMUM (127)
-    0x75, 0x08,                    //   REPORT_SIZE (8)
-    0x95, 0x01,                    //   REPORT_COUNT (1)					1 byte
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
     0x05, 0x01,                    //   USAGE_PAGE (Generic Desktop)
-    0x09, 0x01,                    //   USAGE (Pointer)
     0xa1, 0x00,                    //   COLLECTION (Physical)
     0x09, 0x30,                    //     USAGE (X)
     0x09, 0x31,                    //     USAGE (Y)
-    0x95, 0x02,                    //     REPORT_COUNT (2)					2 byte
-    0x81, 0x02,                    //     INPUT (Data,Var,Abs)
-    0xc0,                          //   END_COLLECTION
-    0x09, 0x39,                    //   USAGE (Hat switch)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x25, 0x03,                    //   LOGICAL_MAXIMUM (3)
-    0x35, 0x00,                    //   PHYSICAL_MINIMUM (0)
-    0x46, 0x0e, 0x01,              //   PHYSICAL_MAXIMUM (270)
-    0x65, 0x14,                    //   UNIT (Eng Rot:Angular Pos)
-    0x75, 0x04,                    //   REPORT_SIZE (4)
-    0x95, 0x01,                    //   REPORT_COUNT (1)					1/2 byte
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0x05, 0x09,                    //   USAGE_PAGE (Button)
-    0x19, 0x01,                    //   USAGE_MINIMUM (Button 1)
-    0x29, 0x0B,                    //   USAGE_MAXIMUM (Button 12)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x25, 0x01,                    //   LOGICAL_MAXIMUM (1)
-    0x75, 0x01,                    //   REPORT_SIZE (1)
-    0x95, 0x0B,                    //   REPORT_COUNT (12)					3/2 byte
-    0x55, 0x00,                    //   UNIT_EXPONENT (0)
-    0x65, 0x00,                    //   UNIT (None)
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0xc0                           // END_COLLECTION
-
-/*     0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
-    0x15, 0x00,                    // LOGICAL_MINIMUM (0)
-    0x09, 0x04,                    // USAGE (Joystick)
-    0xa1, 0x01,                    // COLLECTION (Application)
-    0x05, 0x02,                    //   USAGE_PAGE (Simulation Controls)
-    0x09, 0xbb,                    //   USAGE (Throttle)
-    0x15, 0x81,                    //   LOGICAL_MINIMUM (-127)
-    0x25, 0x7f,                    //   LOGICAL_MAXIMUM (127)
-    0x75, 0x08,                    //   REPORT_SIZE (8)
-    0x95, 0x01,                    //   REPORT_COUNT (1)					1 byte
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0x05, 0x01,                    //   USAGE_PAGE (Generic Desktop)
-    0x09, 0x01,                    //   USAGE (Pointer)
-    0xa1, 0x00,                    //   COLLECTION (Physical)
-    0x09, 0x30,                    //     USAGE (X)
-    0x09, 0x31,                    //     USAGE (Y)
-    0x95, 0x02,                    //     REPORT_COUNT (2)					2 byte
+    0x09, 0x32,                    //     USAGE 
+    0x09, 0x33,                    //     USAGE 
+    0x09, 0x34,
+    0x09, 0x35,
+	0x15, 0x00,        //     Logical Minimum (0)
+	0x26, 0xFF, 0x00,  //     Logical Maximum (255)
+	0x75, 0x08,        //     Report Size (8)
+    0x95, 0x06,                    //     REPORT_COUNT (6)					6 byte
     0x81, 0x02,                    //     INPUT (Data,Var,Abs)
     0xc0,                          //   END_COLLECTION
     0x09, 0x39,                    //   USAGE (Hat switch)
@@ -191,8 +85,7 @@ static const uint8_t hid_report_descriptor[] = {
     0x55, 0x00,                    //   UNIT_EXPONENT (0)
     0x65, 0x00,                    //   UNIT (None)
     0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-//add anothign lot of buttons
-    0x05, 0x09,                    //   USAGE_PAGE (Button)
+    0x05, 0x09,                    //   USAGE_PAGE (Button)   //add anothign lot of buttons 
     0x19, 0x05,                    //   USAGE_MINIMUM (Button 5)
     0x29, 0x0C,                    //   USAGE_MAXIMUM (Button 12)
     0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
@@ -202,7 +95,7 @@ static const uint8_t hid_report_descriptor[] = {
     0x55, 0x00,                    //   UNIT_EXPONENT (0)
     0x65, 0x00,                    //   UNIT (None)
     0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0xc0                           // END_COLLECTION */
+    0xc0                           // END_COLLECTION 
 };
 
 
@@ -244,7 +137,7 @@ const struct usb_interface_descriptor hid_iface = {
 	.bNumEndpoints = 1,
 	.bInterfaceClass = USB_CLASS_HID,
 	.bInterfaceSubClass = 1, /* boot */
-	.bInterfaceProtocol = 2, /* mouse */
+	.bInterfaceProtocol = 2, /* joystick */
 	.iInterface = 0,
 
 	.endpoint = &hid_endpoint,
@@ -431,6 +324,13 @@ usbhid_target_usbd_after_init_and_before_first_poll(void) { /* empty */ }
 
 void nonUSBSetup(void){
 	
+	//Turn off JTAG - ie. allow PA15 (JTDI) & PB3 (JTDO) to be used as
+	// GPIO
+	#define AFIO_MAPR_SWJ_CFG_NO_JTAG_SW            (0x2 << 24)
+	AFIO_MAPR |= AFIO_MAPR_SWJ_CFG_JTAG_OFF_SW_ON;//AFIO_MAPR_SWJ_CFG_NO_JTAG_SW;
+	
+	
+	
 	//Button Inputs:
 	//Available button inputs for the STM32F103C8T6 Blue pill board are:
 	//	PC13
@@ -585,7 +485,7 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 	//	PA9		NOT USED
 	//	PA8		NOT USED
 	GPIOInput = gpio_port_read(GPIOA);
-	if ((GPIOInput & GPIO15) == GPIO15) {buttons[3/8] |= 1 << 0x03;}
+	if ((GPIOInput & GPIO15) == GPIO15) {buttons[3/8] |= 1 << (0x03 - 1);}
 	
 	//BANK B:
 	//PB10, PB11, PB7, PB5, PB4, PB3, PB13, PB12
@@ -596,16 +496,17 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 	//	PB6		Toggle Switch	Active HIGH		Button 5
 	//	PB5		Toggle Switch	Active HIGH		Button 6
 	//	PB4		Toggle Switch	Active HIGH		Button 7
-	//	PB3		NOT USED
+	//	PB3		Toggle Switch	Active HIGH		Button 8
 	//	PB13	NOT USED
 	//	PB12	NOT USED
 	GPIOInput = gpio_port_read(GPIOB);
-	if ((GPIOInput & GPIO10) == GPIO10) {buttons[1/8] |= 1 << 0x01;}
-	if ((GPIOInput & GPIO11) == GPIO11) {buttons[2/8] |= 1 << 0x02;}
-	if ((GPIOInput & GPIO7) == GPIO7) {buttons[4/8] |= 1 << 0x04;}
-	if ((GPIOInput & GPIO6) == GPIO6) {buttons[5/8] |= 1 << 0x05;}
-	if ((GPIOInput & GPIO5) == GPIO5) {buttons[6/8] |= 1 << 0x06;}
-	if ((GPIOInput & GPIO4) == GPIO4) {buttons[7/8] |= 1 << 0x07;}////////////////////
+	if ((GPIOInput & GPIO10) == GPIO10) {buttons[1/8] |= 1 << (0x01 - 1);}
+	if ((GPIOInput & GPIO11) == GPIO11) {buttons[2/8] |= 1 << (0x02 - 1);}
+	if ((GPIOInput & GPIO7) == GPIO7) {buttons[4/8] |= 1 << (0x04 - 1);}
+	if ((GPIOInput & GPIO6) == GPIO6) {buttons[5/8] |= 1 << (0x05 - 1);}
+	if ((GPIOInput & GPIO5) == GPIO5) {buttons[6/8] |= 1 << (0x06 - 1);}
+	if ((GPIOInput & GPIO4) == GPIO4) {buttons[7/8] |= 1 << (0x07 - 1);}
+	if ((GPIOInput & GPIO3) == GPIO3) {buttons[8/8] |= 1 << (0x08 - 1);}
 	
 	//Bank C:
 	//PC13
@@ -619,10 +520,10 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	uint16_t joyRaw;
 	//read buttons
-	for (int i=0;i<11;i++){
+	for (int i=0;i<5;i++){
 		inputs[i] = 0x00;
 	}
-	readAndPackButtons(&inputs[11], 16);
+	readAndPackButtons(&inputs[6], 8);
 	
 	//read ADC
 	uint8_t channel_array[16]; //array of channels to read this time
@@ -669,18 +570,18 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	}
 	inputs[1] = joy2;
 	
+	inputs[2] = 0xFF - joy2;
+	
 	
 }
 
 
 void sys_tick_handler(void)
 {
-	int16_t x = 0, y = 0, z = 0;
-	uint8_t buf[5];
+	uint8_t buf[8];
 	
-	//pollSensors(buf, 13);
+	//pollSensors(buf, 7);
 
-	usbhid_target_accel_get(&x, &y, &z);
 	joy++;
 	if (joy >= 255){
 		joy = 0;
@@ -691,6 +592,9 @@ void sys_tick_handler(void)
 	buf[2] = joy;
 	buf[3] = joy;
 	buf[4] = joy;
+	buf[5] = 0;
+	buf[6] = 0;
+	buf[7] = 0;
 
 	usbd_ep_write_packet(usbd_dev, 0x81, buf, sizeof(buf));
 }
