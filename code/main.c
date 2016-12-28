@@ -20,6 +20,7 @@
  */
 
 #include <stdlib.h>
+#include <stdbool.h>
 #include <unicore-mx/stm32/rcc.h>
 #include <unicore-mx/stm32/gpio.h>
 #include <unicore-mx/stm32/adc.h>
@@ -518,12 +519,20 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 
 
 void pollSensors(uint8_t inputs[], uint8_t numInputs){
+	
+	bool hatSwitch = true;
+	uint8_t threshold = 50;
+	uint8_t half = 127;
+	
+	
+	
 	uint16_t joyRaw;
 	//read buttons
 	for (int i=0;i<5;i++){
 		inputs[i] = 0x00;
 	}
-	readAndPackButtons(&inputs[6], 8);
+	readAndPackButtons(&inputs[7], 8);
+	uint8_t *hat = &inputs[6];
 	
 	
 	//Read ADC1
@@ -591,6 +600,51 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	joyRaw = ADC_DR(ADC1);
 	joy2 = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
 	inputs[3] = joy2;
+	
+	//Convert to buttons or hat switch
+	uint8_t thumbstatus = 0x00;
+	if (inputs[2] > threshold + half){
+		//up
+		thumbstatus |= 0b0001;
+	} else if (inputs[2] < half -threshold){
+		//down
+		thumbstatus |= 0b0010;
+	} 
+	if (inputs[3] > half + threshold){
+		//left
+		thumbstatus |= 0b0100;
+	} else if (inputs[3] < half -threshold){
+		//right
+		thumbstatus |= 0b1000;
+	}
+	
+	//The 4 cardinal directions are provided as the 4 bits of thumbstatus
+	//but hat switches number the directions (however many you tell it)
+	//as numbers, going clockwise (?)
+	//hence must convert from one to the other
+	//mapping[cardinal direction/thumbstatus bits] = hat switch number
+	//hat switch numbers start from 0
+	uint8_t mapping[11];
+	mapping[0] = 0x0F; //nothing
+	mapping[1] = 0; //N
+	mapping[2] = 4; //S
+	mapping[3] = 0x0F; //nothing
+	mapping[4] = 6; //W
+	mapping[5] = 7; //NW
+	mapping[6] = 5; //SW
+	mapping[7] = 0x0F; //nothing
+	mapping[8] = 2; //E
+	mapping[9] = 1;//NE
+	mapping[10] = 3;//SE
+	
+	if (hatSwitch){
+		hat[0] = mapping[thumbstatus];
+	} else{
+		//Double this thumbstick as 4 separate buttons
+		hat[0] = thumbstatus << 4;		
+	}
+	
+	
 	
 	//Read thumb/joystick 3
 	//read channel 8 - PB0
