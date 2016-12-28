@@ -525,6 +525,22 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	}
 	readAndPackButtons(&inputs[6], 8);
 	
+	
+	//Read ADC1
+	
+	//	PA0:	ADC1, CH0
+	//	PA1:	ADC1, CH1
+	//	PA2:	ADC1, CH2
+	//	PA3:	ADC1, CH3
+	//	PA4:	ADC1, CH4
+	//	PA5:	ADC1, CH5
+	//	PA6:	ADC1, CH6
+	//	PA7:	ADC1, CH7
+	//	PB0:	ADC1, CH8
+	//	PB1:	ADC1, CH9
+	
+	
+	//Read thumb/joystick 1
 	//read ADC
 	uint8_t channel_array[16]; //array of channels to read this time
 	channel_array[0] = 7; //want to read channel 7 -(as it is PA7)
@@ -536,16 +552,6 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	//Hence read it
 	joyRaw = ADC_DR(ADC1);
 	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	//Now, the reading goes from 0->255. With a joystick value of -127 -> 127.
-	//Windows interprets:
-	//		0->127 as 0->127
-	//		128->255 as -127 -> -1 (or 0)
-	//There is obviously a discontinuity there -> hence remap and remove it
-	if (joy <= 127){
-		joy = joy + 127;
-	} else{
-		joy = joy - 127;
-	}
 	inputs[0] = joy;
 	
 	//read channel 6 - PA6
@@ -558,19 +564,57 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	//Hence read it
 	joyRaw = ADC_DR(ADC1);
 	joy2 = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	//Now, the reading goes from 0->255. With a joystick value of -127 -> 127.
-	//Windows interprets:
-	//		0->127 as 0->127
-	//		128->255 as -127 -> -1 (or 0)
-	//There is obviously a discontinuity there -> hence remap and remove it
-	if (joy2 <= 127){
-		joy2 = joy2 + 127;
-	} else{
-		joy2 = joy2 - 127;
-	}
 	inputs[1] = joy2;
 	
-	inputs[2] = 0xFF - joy2;
+
+
+	//read thumb/joystick 2
+	//read channel 0 - PA0
+	channel_array[0] = 0; //want to read channel 0 -(as it is PA0)
+	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
+	//start the ADC conversion directly (not trigger mode)
+	adc_start_conversion_direct(ADC1);
+	//Wait until it's finished
+	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
+	//Hence read it
+	joyRaw = ADC_DR(ADC1);
+	joy2 = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[2] = joy2;
+	//read channel 1 - PA1
+	channel_array[0] = 1; //want to read channel 1 -(as it is PA1)
+	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
+	//start the ADC conversion directly (not trigger mode)
+	adc_start_conversion_direct(ADC1);
+	//Wait until it's finished
+	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
+	//Hence read it
+	joyRaw = ADC_DR(ADC1);
+	joy2 = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[3] = joy2;
+	
+	//Read thumb/joystick 3
+	//read channel 8 - PB0
+	channel_array[0] = 8; //want to read channel 8 -(as it is PB0)
+	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
+	//start the ADC conversion directly (not trigger mode)
+	adc_start_conversion_direct(ADC1);
+	//Wait until it's finished
+	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
+	//Hence read it
+	joyRaw = ADC_DR(ADC1);
+	joy2 = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[4] = joy2;
+	//read channel 9 - PB1
+	channel_array[0] = 9; //want to read channel 9 -(as it is PB1)
+	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
+	//start the ADC conversion directly (not trigger mode)
+	adc_start_conversion_direct(ADC1);
+	//Wait until it's finished
+	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
+	//Hence read it
+	joyRaw = ADC_DR(ADC1);
+	joy2 = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[5] = joy2;
 	
 	
 }
@@ -580,21 +624,22 @@ void sys_tick_handler(void)
 {
 	uint8_t buf[8];
 	
-	//pollSensors(buf, 7);
+	pollSensors(buf, 8);
 
 	joy++;
 	if (joy >= 255){
 		joy = 0;
 	}
 
-	buf[0] = joy;
-	buf[1] = joy;
-	buf[2] = joy;
-	buf[3] = joy;
-	buf[4] = joy;
-	buf[5] = 0;
-	buf[6] = 0;
-	buf[7] = 0;
+	//buf[0] = joy;
+	//buf[1] = joy;
+	//buf[2] = joy;
+	//buf[3] = joy;
+	//buf[4] = joy;
+	//buf[5] = 0;
+	//buf[6] = 0;
+	//
+	//buf[7] = 0;
 
 	usbd_ep_write_packet(usbd_dev, 0x81, buf, sizeof(buf));
 }
