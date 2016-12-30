@@ -43,11 +43,11 @@
 #include <unicore-mx/usb/class/dfu.h>
 #endif
 
+
+uint8_t testValue = 0x00;
+
 static usbd_device *usbd_dev;
 
-uint8_t status = 0;
-uint8_t joy = 0x00;
-uint8_t joy2 = 0x00;
 
 static const uint8_t hid_report_descriptor[] = {
     0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
@@ -88,11 +88,11 @@ static const uint8_t hid_report_descriptor[] = {
     0x81, 0x02,                    //   INPUT (Data,Var,Abs)
     0x05, 0x09,                    //   USAGE_PAGE (Button)   //add anothign lot of buttons 
     0x19, 0x05,                    //   USAGE_MINIMUM (Button 5)
-    0x29, 0x0C,                    //   USAGE_MAXIMUM (Button 12)
+    0x29, 0x14,                    //   USAGE_MAXIMUM (Button 20)
     0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
     0x25, 0x01,                    //   LOGICAL_MAXIMUM (1)
     0x75, 0x01,                    //   REPORT_SIZE (1)
-    0x95, 0x08,                    //   REPORT_COUNT (8)					1 byte
+    0x95, 0x10,                    //   REPORT_COUNT (16)					2 byte
     0x55, 0x00,                    //   UNIT_EXPONENT (0)
     0x65, 0x00,                    //   UNIT (None)
     0x81, 0x02,                    //   INPUT (Data,Var,Abs)
@@ -366,9 +366,9 @@ void nonUSBSetup(void){
 	gpio_clear(GPIOC, bankPins);// pull-down resistors
 	//Now set pull-up (button active low) and pull-down (button active high) internal resistors
 	//	Note: Defaults to pull-down resistors
-	//gpio_set(GPIOA, ?????); //enable pull UP resistors for bank A
-	gpio_set(GPIOB, GPIO10 | GPIO11); //for bank B - the thumbsticks are active LOW
-	//gpio_set(GPIOC, GPIO13); //for bank C
+	gpio_set(GPIOA, GPIO10 | GPIO9 | GPIO8); //enable pull UP resistors for bank A
+	gpio_set(GPIOB, GPIO13 | GPIO12 | GPIO10 | GPIO11); //for bank B - the thumbsticks are active LOW
+	gpio_set(GPIOC, GPIO13); //for bank C
 	
 	
 	
@@ -471,6 +471,11 @@ usbhid_target_accel_get(int16_t *out_x, int16_t *out_y, int16_t *out_z)
 
 void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 	//Contains the button mapping
+	//Note: Does not correspond to the buttons in the HID descriptor.
+	//Instead corresponds to the buttons in the output bytes (buttons[])
+	//that are given in.
+	//Starts counting buttons at 1
+	
 
 	uint16_t GPIOInput;
 	
@@ -482,11 +487,15 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 	//PA15, PA10, PA9, PA8
 	//Mapping:
 	//	PA15	Toggle Switch	Active HIGH		Button 3
-	//	PA10	NOT USED
-	//	PA9		NOT USED
-	//	PA8		NOT USED
+	//	PA10	Red Push Button	Active LOW		Button 9
+	//	PA9		Red Push Button	Active LOW		Button 10
+	//	PA8		Red Push Button	Active LOW		Button 11
 	GPIOInput = gpio_port_read(GPIOA);
 	if ((GPIOInput & GPIO15) == GPIO15) {buttons[3/8] |= 1 << (0x03 - 1);}
+	if ((GPIOInput & GPIO10) == 0) {buttons[9/8] |= 0b1;}
+	if ((GPIOInput & GPIO9) == 0)  {buttons[10/8] |= 0b10;}
+	if ((GPIOInput & GPIO8) == 0)  {buttons[11/8] |= 0b100;}
+
 	
 	//BANK B:
 	//PB10, PB11, PB7, PB5, PB4, PB3, PB13, PB12
@@ -498,23 +507,26 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 	//	PB5		Toggle Switch	Active HIGH		Button 6
 	//	PB4		Toggle Switch	Active HIGH		Button 7
 	//	PB3		Toggle Switch	Active HIGH		Button 8
-	//	PB13	NOT USED
-	//	PB12	NOT USED
+	//	PB13	Red Push Button	Active LOW		Button 12
+	//	PB12	Red Push Button	Active LOW		Button 13
 	GPIOInput = gpio_port_read(GPIOB);
-	if ((GPIOInput & GPIO10) == GPIO10) {buttons[1/8] |= 1 << (0x01 - 1);}
-	if ((GPIOInput & GPIO11) == GPIO11) {buttons[2/8] |= 1 << (0x02 - 1);}
+	if ((GPIOInput & GPIO10) == 0) {buttons[1/8] |= 1 << (0x01 - 1);}
+	if ((GPIOInput & GPIO11) == 0) {buttons[2/8] |= 1 << (0x02 - 1);}
 	if ((GPIOInput & GPIO7) == GPIO7) {buttons[4/8] |= 1 << (0x04 - 1);}
 	if ((GPIOInput & GPIO6) == GPIO6) {buttons[5/8] |= 1 << (0x05 - 1);}
 	if ((GPIOInput & GPIO5) == GPIO5) {buttons[6/8] |= 1 << (0x06 - 1);}
 	if ((GPIOInput & GPIO4) == GPIO4) {buttons[7/8] |= 1 << (0x07 - 1);}
 	if ((GPIOInput & GPIO3) == GPIO3) {buttons[8/8] |= 1 << (0x08 - 1);}
-	
+	if ((GPIOInput & GPIO13) == 0) {buttons[12/8] |= 0b1000;}
+	if ((GPIOInput & GPIO12) == 0)  {buttons[13/8] |= 0b10000;}
+
+
 	//Bank C:
 	//PC13
 	//Mapping:
-	//	PC13	NOT USED
+	//	PC13	Red Push Button	Active LOW		Button 14
 	GPIOInput = gpio_port_read(GPIOC);
-	
+	if ((GPIOInput & GPIO13) == 0) {buttons[14/8] |= 0b10000;}
 }
 
 
@@ -527,11 +539,12 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	
 	
 	uint16_t joyRaw;
+	uint8_t joy;
 	//read buttons
-	for (int i=0;i<5;i++){
+	for (int i=0;i<numInputs;i++){
 		inputs[i] = 0x00;
 	}
-	readAndPackButtons(&inputs[7], 8);
+	readAndPackButtons(&inputs[7], 2*8);
 	uint8_t *hat = &inputs[6];
 	
 	
@@ -572,8 +585,8 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
 	//Hence read it
 	joyRaw = ADC_DR(ADC1);
-	joy2 = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	inputs[1] = joy2;
+	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[1] = joy;
 	
 
 
@@ -587,8 +600,8 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
 	//Hence read it
 	joyRaw = ADC_DR(ADC1);
-	joy2 = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	inputs[2] = joy2;
+	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[2] = joy;
 	//read channel 1 - PA1
 	channel_array[0] = 1; //want to read channel 1 -(as it is PA1)
 	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
@@ -598,8 +611,8 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
 	//Hence read it
 	joyRaw = ADC_DR(ADC1);
-	joy2 = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	inputs[3] = joy2;
+	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[3] = joy;
 	
 	//Convert to buttons or hat switch
 	uint8_t thumbstatus = 0x00;
@@ -656,8 +669,8 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
 	//Hence read it
 	joyRaw = ADC_DR(ADC1);
-	joy2 = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	inputs[4] = joy2;
+	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[4] = joy;
 	//read channel 9 - PB1
 	channel_array[0] = 9; //want to read channel 9 -(as it is PB1)
 	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
@@ -667,8 +680,8 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
 	//Hence read it
 	joyRaw = ADC_DR(ADC1);
-	joy2 = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	inputs[5] = joy2;
+	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[5] = joy;
 	
 	
 }
@@ -676,24 +689,14 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 
 void sys_tick_handler(void)
 {
-	uint8_t buf[8];
+	uint8_t buf[9];
 	
-	pollSensors(buf, 8);
+	pollSensors(buf, 9);
 
-	joy++;
-	if (joy >= 255){
-		joy = 0;
+	testValue++;
+	if (testValue >= 255){
+		testValue = 0;
 	}
-
-	//buf[0] = joy;
-	//buf[1] = joy;
-	//buf[2] = joy;
-	//buf[3] = joy;
-	//buf[4] = joy;
-	//buf[5] = 0;
-	//buf[6] = 0;
-	//
-	//buf[7] = 0;
-
+	//buf[8] = testValue;
 	usbd_ep_write_packet(usbd_dev, 0x81, buf, sizeof(buf));
 }
