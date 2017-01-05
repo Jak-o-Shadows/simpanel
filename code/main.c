@@ -443,32 +443,6 @@ int main(void)
 	}
 }
 
-/* Fake Version */
-void __attribute__((weak))
-usbhid_target_accel_get(int16_t *out_x, int16_t *out_y, int16_t *out_z)
-{
-
-	static int x = 0;
-	static int dir = 1;
-
-	if (out_x != NULL) {
-		*out_x = dir;
-	}
-
-	x += dir;
-	if (x > 60) {
-		dir = -dir;
-		*out_y = 0xAA;
-	}
-	if (x < -60) {
-		dir = -dir;
-		*out_y = 0x00;
-	}
-	
-	
-}
-
-
 void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 	//Contains the button mapping
 	//Note: Does not correspond to the buttons in the HID descriptor.
@@ -476,12 +450,88 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 	//that are given in.
 	//Starts counting buttons at 1
 	
-
-	uint16_t GPIOInput;
 	
 	for (int i=0;i<numButtons/8; i++){
 		buttons[i] = 0x00;
 	}
+	
+	
+	//The buttons are what port
+	uint16_t portMapping[20];
+	portMapping[0] = 0xFF; //none
+	portMapping[1] = 0xFF;
+	portMapping[2] = 0xFF;
+	portMapping[3] = 0xFF;
+	portMapping[4] = GPIOB;
+	portMapping[5] = GPIOB;
+	portMapping[6] = GPIOA;
+	portMapping[7] = GPIOB;
+	portMapping[8] = GPIOB;
+	portMapping[9] = GPIOB;
+	portMapping[10] = GPIOA;
+	portMapping[11] = GPIOA;
+	portMapping[12] = GPIOA;
+	portMapping[13] = GPIOB;
+	portMapping[14] = GPIOB;
+	portMapping[15] = GPIOC;
+	portMapping[16] = 0xFF;
+	portMapping[17] = 0xFF;
+	portMapping[18] = 0xFF;
+	portMapping[19] = 0xFF;
+	//Buttons are active high?
+	uint32_t levelMapping = 0;
+	//The bits of levelMapping are what logic level an active button is
+	levelMapping |= 1 << 7;
+	levelMapping |= 0b11111 << 8
+	//What pin is what button. Local to the port
+	uint16_t pinMapping[20];
+	pinMapping[0] = 0xFF; //None
+	pinMapping[1] = 0xFF; //None
+	pinMapping[2] = 0xFF; //None
+	pinMapping[3] = 0xFF; //None
+	pinMapping[4] = GPIO15;
+	
+	
+	uint16_t aInput = gpio_port_read(GPIOA);
+	uint16_t bInput = gpio_port_read(GPIOB);
+	uint16_t cInput = gpio_port_read(GPIOC);
+	uint16_t GPIOInput;
+	for (int i=0;i<20;i++){
+		if (portMapping[i] != 0xFF){
+			//Have a mapping here
+			switch (portMapping[i]){
+				case GPIOA:
+					GPIOInput = aInput;
+					break;
+				case GPIOB:
+					GPIOInput = bInput;
+					break;
+				case GPIOC:
+					GPIOInput = cInput;
+					break;
+				default:
+					GPIOInput = 0;
+			if (pinMapping[i] != 0xFF){
+				//have a mapping here
+				if ((GPIOInput & pinMapping[i]) ! pinMapping[i]) {
+						buttons[i/8] |= 1 << i - 8*(i/8);
+				}
+				if ((levelMapping & (1 << i)) != 0){
+					//Active High
+					if ((GPIOInput & pinMapping[i]) == pinMapping[i]) {
+						buttons[i/8] |= 1 << i - 8*(i/8);
+						}
+				} else{
+					//Active low
+				}
+			}
+		}
+		
+	}
+
+	uint16_t GPIOInput;
+	
+
 	
 	//Bank A:
 	//PA15, PA10, PA9, PA8
