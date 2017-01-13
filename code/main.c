@@ -455,42 +455,104 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 		buttons[i] = 0x00;
 	}
 	
-	
+	//Store the button mapping in arrays to make it MUCH easier to 
+	//	change, and to reduce code duplication
+	//0xFF represents no switch connected
 	//The buttons are what port
-	uint16_t portMapping[20];
-	portMapping[0] = 0xFF; //none
-	portMapping[1] = 0xFF;
-	portMapping[2] = 0xFF;
-	portMapping[3] = 0xFF;
-	portMapping[4] = GPIOB;
-	portMapping[5] = GPIOB;
-	portMapping[6] = GPIOA;
-	portMapping[7] = GPIOB;
-	portMapping[8] = GPIOB;
-	portMapping[9] = GPIOB;
-	portMapping[10] = GPIOA;
-	portMapping[11] = GPIOA;
-	portMapping[12] = GPIOA;
-	portMapping[13] = GPIOB;
-	portMapping[14] = GPIOB;
-	portMapping[15] = GPIOC;
-	portMapping[16] = 0xFF;
-	portMapping[17] = 0xFF;
-	portMapping[18] = 0xFF;
-	portMapping[19] = 0xFF;
+	int portMapping[20];
 	//Buttons are active high?
-	uint32_t levelMapping = 0;
 	//The bits of levelMapping are what logic level an active button is
-	levelMapping |= 1 << 7;
-	levelMapping |= 0b11111 << 8
+	uint32_t levelMapping = 0;
 	//What pin is what button. Local to the port
 	uint16_t pinMapping[20];
-	pinMapping[0] = 0xFF; //None
-	pinMapping[1] = 0xFF; //None
-	pinMapping[2] = 0xFF; //None
-	pinMapping[3] = 0xFF; //None
-	pinMapping[4] = GPIO15;
 	
+	//Button 0
+	// NC
+	portMapping[0] = 0xFF; //none
+	pinMapping[0] = 0xFF; //None
+	//Button 1
+	// NC
+	portMapping[1] = 0xFF;
+	pinMapping[1] = 0xFF; //None
+	//Button 2
+	// NC
+	portMapping[2] = 0xFF;
+	pinMapping[2] = 0xFF; //None
+	//Button 3
+	// NC
+	portMapping[3] = 0xFF;
+	pinMapping[3] = 0xFF; //None
+	//Button 4
+	//	PB10	Left Thumbstick Button		Active LOW
+	portMapping[4] = GPIOB;
+	pinMapping[4] = GPIO10;
+	//Button 5
+	//	PB11	Right Thumbstick Button		Active LOW		
+	portMapping[5] = GPIOB;
+	pinMapping[5] = GPIO11;
+	//Button 6
+	//	PA15	Toggle Switch	Active HIGH
+	portMapping[6] = GPIOA;
+	pinMapping[6] = GPIO15;
+	levelMapping |= 1 << 6;
+	//Button 7
+	//	PB7		Toggle Switch	Active HIGH
+	portMapping[7] = GPIOB;
+	pinMapping[7] = GPIO7;
+	levelMapping |= 1 << 7;
+	levelMapping |= 1 << 7;
+	//Button 8
+	//	PB6		Toggle Switch	Active HIGH
+	portMapping[8] = GPIOB;
+	pinMapping[8] = GPIO6;
+	levelMapping |= 1 << 8;
+	//Button 9
+	//	PB5		Toggle Switch	Active HIGH
+	portMapping[9] = GPIOB;
+	pinMapping[9] = GPIO5;
+	levelMapping |= 1 << 9;
+	//Button 10
+	//	PB4		Toggle Switch	Active HIGH
+	portMapping[10] = GPIOB;
+	pinMapping[10] = GPIO4;
+	levelMapping |= 1 << 10;
+	//Button 11
+	//	PB3		Toggle Switch	Active HIGH
+	portMapping[11] = GPIOB;
+	pinMapping[11] = GPIO3;
+	levelMapping |= 1 << 11;
+	//Button 12
+	//	PA10	Red Push Button	Active LOW
+	portMapping[12] = GPIOA;
+	pinMapping[12] = GPIO10;
+	//Button 13
+	//	PA9		Red Push Button	Active LOW
+	portMapping[13] = GPIOA;
+	pinMapping[13] = GPIO9;
+	//Button 14
+	//	PA8		Red Push Button	Active LOW
+	portMapping[14] = GPIOA;
+	pinMapping[14] = GPIO8;
+	//Button 15
+	//	PB13	Red Push Button	Active LOW
+	portMapping[15] = GPIOB;
+	pinMapping[15] = GPIO13;
+	//Button 16
+	//	PB12	Red Push Button	Active LOW
+	portMapping[16] = GPIOB;
+	pinMapping[16] = GPIO12;
+	//Button 17
+	//	PC13	Red Push Button	Active LOW
+	portMapping[17] = GPIOC;
+	pinMapping[17] = GPIO13;
+	//Button 18
+	// NC
+	portMapping[18] = 0xFF;
+	pinMapping[18] = 0xFF;
+	//Button 19
+	// NC
+	portMapping[19] = 0xFF;
+	pinMapping[19] = 0xFF;
 	
 	uint16_t aInput = gpio_port_read(GPIOA);
 	uint16_t bInput = gpio_port_read(GPIOB);
@@ -511,72 +573,23 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 					break;
 				default:
 					GPIOInput = 0;
+			}
 			if (pinMapping[i] != 0xFF){
 				//have a mapping here
-				if ((GPIOInput & pinMapping[i]) ! pinMapping[i]) {
-						buttons[i/8] |= 1 << i - 8*(i/8);
-				}
 				if ((levelMapping & (1 << i)) != 0){
 					//Active High
 					if ((GPIOInput & pinMapping[i]) == pinMapping[i]) {
-						buttons[i/8] |= 1 << i - 8*(i/8);
+						buttons[i/8] |= 1 << (i - 8*(i/8));
 						}
 				} else{
 					//Active low
+					if ((GPIOInput & pinMapping[i]) == 0) {
+						buttons[i/8] |= 1 << (i - 8*(i/8));
+						}
 				}
 			}
-		}
-		
+		}	
 	}
-
-	uint16_t GPIOInput;
-	
-
-	
-	//Bank A:
-	//PA15, PA10, PA9, PA8
-	//Mapping:
-	//	PA15	Toggle Switch	Active HIGH		Button 3
-	//	PA10	Red Push Button	Active LOW		Button 9
-	//	PA9		Red Push Button	Active LOW		Button 10
-	//	PA8		Red Push Button	Active LOW		Button 11
-	GPIOInput = gpio_port_read(GPIOA);
-	if ((GPIOInput & GPIO15) == GPIO15) {buttons[3/8] |= 1 << (0x03 - 1);}
-	if ((GPIOInput & GPIO10) == 0) {buttons[9/8] |= 0b1;}
-	if ((GPIOInput & GPIO9) == 0)  {buttons[10/8] |= 0b10;}
-	if ((GPIOInput & GPIO8) == 0)  {buttons[11/8] |= 0b100;}
-
-	
-	//BANK B:
-	//PB10, PB11, PB7, PB5, PB4, PB3, PB13, PB12
-	//Mapping:
-	//	PB10	Left Thumbstick Button		Active LOW		Button 1
-	//	PB11	Right Thumbstick Button		Active LOW		Button 2
-	//	PB7		Toggle Switch	Active HIGH		Button 4
-	//	PB6		Toggle Switch	Active HIGH		Button 5
-	//	PB5		Toggle Switch	Active HIGH		Button 6
-	//	PB4		Toggle Switch	Active HIGH		Button 7
-	//	PB3		Toggle Switch	Active HIGH		Button 8
-	//	PB13	Red Push Button	Active LOW		Button 12
-	//	PB12	Red Push Button	Active LOW		Button 13
-	GPIOInput = gpio_port_read(GPIOB);
-	if ((GPIOInput & GPIO10) == 0) {buttons[1/8] |= 1 << (0x01 - 1);}
-	if ((GPIOInput & GPIO11) == 0) {buttons[2/8] |= 1 << (0x02 - 1);}
-	if ((GPIOInput & GPIO7) == GPIO7) {buttons[4/8] |= 1 << (0x04 - 1);}
-	if ((GPIOInput & GPIO6) == GPIO6) {buttons[5/8] |= 1 << (0x05 - 1);}
-	if ((GPIOInput & GPIO5) == GPIO5) {buttons[6/8] |= 1 << (0x06 - 1);}
-	if ((GPIOInput & GPIO4) == GPIO4) {buttons[7/8] |= 1 << (0x07 - 1);}
-	if ((GPIOInput & GPIO3) == GPIO3) {buttons[8/8] |= 1 << (0x08 - 1);}
-	if ((GPIOInput & GPIO13) == 0) {buttons[12/8] |= 0b1000;}
-	if ((GPIOInput & GPIO12) == 0)  {buttons[13/8] |= 0b10000;}
-
-
-	//Bank C:
-	//PC13
-	//Mapping:
-	//	PC13	Red Push Button	Active LOW		Button 14
-	GPIOInput = gpio_port_read(GPIOC);
-	if ((GPIOInput & GPIO13) == 0) {buttons[14/8] |= 0b10000;}
 }
 
 
@@ -594,7 +607,7 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	for (int i=0;i<numInputs;i++){
 		inputs[i] = 0x00;
 	}
-	readAndPackButtons(&inputs[7], 2*8);
+	readAndPackButtons(&inputs[6], 3*8);
 	uint8_t *hat = &inputs[6];
 	
 	
