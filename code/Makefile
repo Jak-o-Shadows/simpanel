@@ -1,7 +1,7 @@
 #this makefile is helped in part by https://github.com/libopencm3/libopencm3-examples/blob/master/examples/Makefile.rules
 
 #My includes/own library location
-ROOT = 
+ROOT = ./
 LOWLEVEL= $(ROOT)lowlevel
 MIDLEVEL = $(ROOT)midlevel
 HIGHLEVEL= $(ROOT)highlevel
@@ -113,6 +113,11 @@ list: $(BINARY).list
 images: $(BINARY).images
 flash: $(BINARY).flash
 
+
+#main.elf: $(OBJS) 
+#	$(LD) $(LDFLAGS) $(ARCH_FLAGS) $(OBJS) $(LDLIBS) -o $(*).elf
+
+
 %.images: %.bin %.hex %.srec %.list %.map
 	@#printf "*** $* images generated ***\n"
 
@@ -166,3 +171,5 @@ telnet:;
 testecho:;
 	echo $(libopenCM3Path)
 	echo $(LD_PARAMS)
+	echo $(HL_LIBS)
+	echo $(CFLAGS)
