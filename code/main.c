@@ -475,7 +475,7 @@ void testOutputs(uint8_t inputs[], uint8_t numInputs){
 
 void sys_tick_handler(void)
 {
-	uint8_t buf[9];
+	uint8_t buf[13 + 1 + 5];
 	
 	//pollSensors(buf, 9);
 	testOutputs(buf, 9);
