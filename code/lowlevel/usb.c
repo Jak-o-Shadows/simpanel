@@ -52,8 +52,8 @@ static const uint8_t hid_report_descriptor[] = {
 	0x09, 0x36,					   //	  USAGE (Slider)
 	0x15, 0x00,        //     Logical Minimum (0)
 	0x26, 0xFF, 0x00,  //     Logical Maximum (255)
-	0x75, 0x0D,        //     Report Size (8)
-    0x95, 0x08,                    //     REPORT_COUNT (13)					13 byte
+	0x75, 0x08,        //     Report Size (8)
+    0x95, 0x0D,                    //     REPORT_COUNT (13)					13 byte
     0x81, 0x02,                    //     INPUT (Data,Var,Abs)
     0xc0,                          //   END_COLLECTION
     0x09, 0x39,                    //   USAGE (Hat switch)
