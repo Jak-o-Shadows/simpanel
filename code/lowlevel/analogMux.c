@@ -86,8 +86,8 @@ void setupMux(struct AnalogMuxConfig config){
 	
 }
 
-void read(struct AnalogMuxConfig config, uint8_t retVals[]){
-	//Read all the pins that are connected. 
+void readAll(struct AnalogMuxConfig config, uint8_t retVals[]){
+	//Read all the pins that are connected to the mux
 	//	Note: only read connected ones for time. Does not change the
 	//		position of the data in the retVals array that is output
 	uint8_t channel_array[16]; //array of channels to read this time
@@ -111,7 +111,7 @@ void read(struct AnalogMuxConfig config, uint8_t retVals[]){
 			}
 			
 			//read ADC
-			channel_array[0] = i; //want to read channel i
+			channel_array[0] = adcChanLookup(config.sigPort, config.sigPin); //want to read channel i
 			adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
 			//start the ADC conversion directly (not trigger mode)
 			adc_start_conversion_direct(ADC1);
@@ -122,6 +122,41 @@ void read(struct AnalogMuxConfig config, uint8_t retVals[]){
 			retVals[i] = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
 		}
 	}
+}
+
+uint8_t readOne(struct AnalogMuxConfig config, uint8_t pin){
+	//Read a single pin from the analog mux
+	uint8_t channel_array[16]; //array of channels to read this time
+
+	uint16_t joyRaw; //ADC is 12bit. Only are about 8 bit, because HID
+	uint8_t joyFin;
+
+	//tell mux looking at this pins - ie. write pin as a 4 bit
+	//	binary number to the s0->s3 pins
+	//because they are (potentially) on different banks, no real
+	//	neat way of doing this.
+	writePin(config.s0Port, config.s0Pin, ~(pin^0b0001) & pin);
+	writePin(config.s1Port, config.s1Pin, ~(pin^0b0010) & pin);
+	writePin(config.s2Port, config.s2Pin, ~(pin^0b0100) & pin);
+	writePin(config.s3Port, config.s3Pin, ~(pin^0b1000) & pin);
+
+	//Now have to wait a max of a few hundred nanoseconds
+	for (int j=0;j<2000;j++){
+		__asm__("nop");
+	}
+	
+	//read ADC
+	channel_array[0] = adcChanLookup(config.sigPort, config.sigPin); //want to read channel i
+	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
+	//start the ADC conversion directly (not trigger mode)
+	adc_start_conversion_direct(ADC1);
+	//Wait until it's finished
+	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
+	//Hence read it
+	joyRaw = ADC_DR(ADC1);
+	joyFin = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	
+	return joyFin;
 }
 
 void enable(struct AnalogMuxConfig config){
@@ -167,5 +202,32 @@ void writePin(uint32_t port, uint16_t pin, uint8_t value){
 	}
 }
 
+
+uint8_t adcChanLookup(uint32_t port, uint16_t sigPin){
+	//Figures out what ADC corresponds to what channel
+	uint8_t chan = 0xFF;
+	switch (port) {
+		case GPIOA:
+			switch (sigPin) {
+				
+				case GPIO3:
+					chan = 3;
+					break;
+			}
+			break;
+		case GPIOB:
+			
+			break;
+	}
+	
+	//error checking here until I finisht his code
+	if (chan == 0xFF){
+		blocking_handler();
+	}
+	
+	return chan;
+	
+	
+}
 
 

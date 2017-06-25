@@ -25,7 +25,9 @@ struct AnalogMuxConfig {
 //external
 void setupMux(struct AnalogMuxConfig config);
 
-void read(struct AnalogMuxConfig config, uint8_t retVals[]);
+void readAll(struct AnalogMuxConfig config, uint8_t retVals[]);
+
+uint8_t readOne(struct AnalogMuxConfig config, uint8_t pin);
 
 void enable(struct AnalogMuxConfig config);
 
@@ -36,7 +38,7 @@ void disable(struct AnalogMuxConfig config);
 //internal
 uint32_t whichClock(uint32_t bank);
 void writePin(uint32_t port, uint16_t pin, uint8_t value);
-
+uint8_t adcChanLookup(uint32_t port, uint16_t sigPin);
 
 
 
