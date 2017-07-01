@@ -357,6 +357,28 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	uint8_t threshold = 50;
 	uint8_t half = 127;
 	
+	uint8_t deadzone[13];
+	//+- deadzone amount gets put to zero
+	// [] limits
+	deadzone[0] = 50;
+	deadzone[1] = 50;
+	deadzone[2] = 50;
+	deadzone[3] = 50;
+	deadzone[4] = 50;
+	deadzone[5] = 50;
+	deadzone[6] = 50;
+	deadzone[7] = 50;
+	deadzone[8] = 50;
+	deadzone[9] = 50;
+	deadzone[10] = 50;
+	deadzone[11] = 50;
+	deadzone[12] = 50;
+
+	
+	uint8_t correctionStart[13];
+	for (int i=0;i<13;i++){
+		correctionStart[i] = deadzone[i];
+	}
 	
 	
 	uint16_t joyRaw;
@@ -554,7 +576,9 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 		//Double this thumbstick as 4 separate buttons
 		//hat[0] = thumbstatus << 8;		
 	}
+
 	
+
 	
 	
 	//Read the analogue inputs that are via the analog multiplexer
@@ -568,7 +592,7 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	uint8_t trimOutMap[] = {0, 1, 4, 5};
 	uint8_t trimInMap[] = {8, 9, 11, 12};
 	
-	int testVal;
+ 	int testVal;
 	for (int i=0;i<4;i++){
 		testVal = inputs[trimOutMap[i]] + (inputs[trimInMap[i]]-0x7F)/2;
 		//have to check against overflow because wrapping around is not desirable behaviour
@@ -579,7 +603,34 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 		} else {
 			inputs[trimOutMap[i]] = (uint8_t) testVal;
 		}
-	}	
+	} 
+	
+	
+	//apply deadzones
+	for (int i=0;i<13;i++){
+		if ((inputs[i] <= (0xFF/2 + deadzone[i])) && (inputs[i] >= (0xFF/2 - deadzone[i]))){
+			//apply the deadzone
+			inputs[i] = 0xFF/2;
+		} else {
+			//apply deadzone correction
+			if (inputs[i] > 0xFF/2) {
+				// |-----|----x-----|
+				// a     b          c
+				// val = (x-b)*(c-a)/(c-b) + a
+				inputs[i] = 0xFF/2 + (inputs[i] - (0xFF/2 + correctionStart[i])) * (0xFF-0xFF/2)/(0xFF - (0xFF/2+correctionStart[i]));
+			} else {
+				// |-----x-----|-----|
+				// c           b     a
+				// val = (x-b)*(c-a)/(c-b) + a
+				inputs[i] = 0xFF/2 + (inputs[i] - (0xFF/2 - correctionStart[i])) * (0 - 0xFF/2)/(0 - (0xFF/2-correctionStart[i]));
+			}
+		}
+	}
+	
+	
+	
+	
+	
 }
 
 void testOutputs(uint8_t inputs[], uint8_t numInputs){
