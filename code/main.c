@@ -20,6 +20,7 @@
  */
 
 #include <stdlib.h>
+#include <stdbool.h>
 #include <unicore-mx/stm32/rcc.h>
 #include <unicore-mx/stm32/gpio.h>
 #include <unicore-mx/stm32/adc.h>
@@ -31,405 +32,30 @@
 #include <unicore-mx/usbd/usbd.h>
 #include <unicore-mx/usb/class/hid.h>
 #include <unicore-mx/usbd/misc/string.h>
-#include "usbhid-target.h"
+#include "lowlevel/usbhid-target.h"
+#include "lowlevel/usb.h"
 
-/* Define this (in the Makefile CFLAGS) to include the DFU APP interface. */
-
-#define INCLUDE_DFU_INTERFACE
-
-#ifdef INCLUDE_DFU_INTERFACE
-#include <unicore-mx/cm3/scb.h>
-#include <unicore-mx/usb/class/dfu.h>
-#endif
-
-static usbd_device *usbd_dev;
-
-uint8_t status = 0;
-uint8_t joy = 0x00;
-uint8_t joy2 = 0x00;
-
-static const uint8_t hid_report_descriptor[] = {
-/*     0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
-    0x15, 0x00,                    // LOGICAL_MINIMUM (0)
-    0x09, 0x04,                    // USAGE (Joystick)
-    0xa1, 0x01,                    // COLLECTION (Application)
-    0x05, 0x02,                    //   USAGE_PAGE (Simulation Controls)
-    0x09, 0xbb,                    //   USAGE (Throttle)
-    0x15, 0x81,                    //   LOGICAL_MINIMUM (-127)
-    0x25, 0x7f,                    //   LOGICAL_MAXIMUM (127)
-    0x75, 0x08,                    //   REPORT_SIZE (8)
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0x95, 0x01,                    //   REPORT_COUNT (1)
-    0x05, 0x01,                    //   USAGE_PAGE (Generic Desktop)
-    0x09, 0x01,                    //   USAGE (Pointer)
-    0xa1, 0x00,                    //   COLLECTION (Physical)
-    0x09, 0x30,                    //     USAGE (X)								
-    0x09, 0x31,                    //     USAGE (Y)								
-    //0x09, 0x32,                    //     USAGE (Z)								
-    //0x09, 0x35,                    //     USAGE (Rz)							
-    //0x09, 0x34,                    //     USAGE (Ry)							
-    //0x09, 0x36,                    //     USAGE (Slider)						
-    //0x09, 0x37,                    //     USAGE (Dial)							
-    //0x09, 0x38,                    //     USAGE (Wheel)							
-    //0x09, 0x40,                    //     USAGE (Vx)							
-    //0x09, 0x41,                    //     USAGE (Vy)							
-    //0x95, 0x0a,                    //     REPORT_COUNT (10)
-	0x95, 0x02,						//		REPORT_COUNT (2)
-    0x81, 0x02,                    //     INPUT (Data,Var,Abs)
-    0xc0,                          //   END_COLLECTION
-    0x09, 0x39,                    //   USAGE (Hat switch)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x25, 0x03,                    //   LOGICAL_MAXIMUM (3)
-    0x35, 0x00,                    //   PHYSICAL_MINIMUM (0)
-    0x46, 0x0e, 0x01,              //   PHYSICAL_MAXIMUM (270)
-    0x65, 0x14,                    //   UNIT (Eng Rot:Angular Pos)
-    0x75, 0x04,                    //   REPORT_SIZE (4)
-    0x95, 0x01,                    //   REPORT_COUNT (1)
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0x75, 0x04,                    //   REPORT_SIZE (4)
-    0x95, 0x01,                    //   REPORT_COUNT (1)
-    0x81, 0x03,                    //   INPUT (Cnst,Var,Abs)					
-    0x05, 0x09,                    //   USAGE_PAGE (Button)
-    0x19, 0x01,                    //   USAGE_MINIMUM (Button 1)
-    0x29, 0x10,                    //   USAGE_MAXIMUM (Button 16)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x25, 0x01,                    //   LOGICAL_MAXIMUM (1)
-    0x75, 0x01,                    //   REPORT_SIZE (1)
-    0x95, 0x10,                    //   REPORT_COUNT (16)
-    0x55, 0x00,                    //   UNIT_EXPONENT (0)
-    0x65, 0x00,                    //   UNIT (None)
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)					
-    0xc0                           // END_COLLECTION
-}; */
-//byte 1: X
-//byte 2: Y
-//byte 3: Z
-//byte 4: Rz
-//byte 5: Ry
-//byte 6: Slider
-//byte 7: Dial
-//byte 8: Wheel
-//byte 9: Vx
-//byte 10: Vy
-//byte 11: First 4 bits: POV hat. Last 4 bits: nothing
-//byte 11->(11+7)		11->18:	buttons. Buttons
-    0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
-    0x15, 0x00,                    // LOGICAL_MINIMUM (0)
-    0x09, 0x04,                    // USAGE (Joystick)
-    0xa1, 0x01,                    // COLLECTION (Application)
-    0x05, 0x02,                    //   USAGE_PAGE (Simulation Controls)
-    0x09, 0xbb,                    //   USAGE (Throttle)
-    0x15, 0x81,                    //   LOGICAL_MINIMUM (-127)
-    0x25, 0x7f,                    //   LOGICAL_MAXIMUM (127)
-    0x75, 0x08,                    //   REPORT_SIZE (8)
-    0x95, 0x01,                    //   REPORT_COUNT (1)					1 byte
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0x05, 0x01,                    //   USAGE_PAGE (Generic Desktop)
-    0x09, 0x01,                    //   USAGE (Pointer)
-    0xa1, 0x00,                    //   COLLECTION (Physical)
-    0x09, 0x30,                    //     USAGE (X)
-    0x09, 0x31,                    //     USAGE (Y)
-    0x95, 0x02,                    //     REPORT_COUNT (2)					2 byte
-    0x81, 0x02,                    //     INPUT (Data,Var,Abs)
-    0xc0,                          //   END_COLLECTION
-    0x09, 0x39,                    //   USAGE (Hat switch)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x25, 0x03,                    //   LOGICAL_MAXIMUM (3)
-    0x35, 0x00,                    //   PHYSICAL_MINIMUM (0)
-    0x46, 0x0e, 0x01,              //   PHYSICAL_MAXIMUM (270)
-    0x65, 0x14,                    //   UNIT (Eng Rot:Angular Pos)
-    0x75, 0x04,                    //   REPORT_SIZE (4)
-    0x95, 0x01,                    //   REPORT_COUNT (1)					1/2 byte
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0x05, 0x09,                    //   USAGE_PAGE (Button)
-    0x19, 0x01,                    //   USAGE_MINIMUM (Button 1)
-    0x29, 0x0B,                    //   USAGE_MAXIMUM (Button 12)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x25, 0x01,                    //   LOGICAL_MAXIMUM (1)
-    0x75, 0x01,                    //   REPORT_SIZE (1)
-    0x95, 0x0B,                    //   REPORT_COUNT (12)					3/2 byte
-    0x55, 0x00,                    //   UNIT_EXPONENT (0)
-    0x65, 0x00,                    //   UNIT (None)
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0xc0                           // END_COLLECTION
-
-/*     0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
-    0x15, 0x00,                    // LOGICAL_MINIMUM (0)
-    0x09, 0x04,                    // USAGE (Joystick)
-    0xa1, 0x01,                    // COLLECTION (Application)
-    0x05, 0x02,                    //   USAGE_PAGE (Simulation Controls)
-    0x09, 0xbb,                    //   USAGE (Throttle)
-    0x15, 0x81,                    //   LOGICAL_MINIMUM (-127)
-    0x25, 0x7f,                    //   LOGICAL_MAXIMUM (127)
-    0x75, 0x08,                    //   REPORT_SIZE (8)
-    0x95, 0x01,                    //   REPORT_COUNT (1)					1 byte
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0x05, 0x01,                    //   USAGE_PAGE (Generic Desktop)
-    0x09, 0x01,                    //   USAGE (Pointer)
-    0xa1, 0x00,                    //   COLLECTION (Physical)
-    0x09, 0x30,                    //     USAGE (X)
-    0x09, 0x31,                    //     USAGE (Y)
-    0x95, 0x02,                    //     REPORT_COUNT (2)					2 byte
-    0x81, 0x02,                    //     INPUT (Data,Var,Abs)
-    0xc0,                          //   END_COLLECTION
-    0x09, 0x39,                    //   USAGE (Hat switch)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x25, 0x07,                    //   LOGICAL_MAXIMUM (7)
-    0x35, 0x00,                    //   PHYSICAL_MINIMUM (0)
-    0x46, 0x0e, 0x01,              //   PHYSICAL_MAXIMUM (270)
-    0x65, 0x14,                    //   UNIT (Eng Rot:Angular Pos)
-    0x75, 0x04,                    //   REPORT_SIZE (4)
-    0x95, 0x01,                    //   REPORT_COUNT (1)					1/2 byte
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0x05, 0x09,                    //   USAGE_PAGE (Button)
-    0x19, 0x01,                    //   USAGE_MINIMUM (Button 1)
-    0x29, 0x04,                    //   USAGE_MAXIMUM (Button 4)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x25, 0x01,                    //   LOGICAL_MAXIMUM (1)
-    0x75, 0x01,                    //   REPORT_SIZE (1)
-    0x95, 0x04,                    //   REPORT_COUNT (4)					1/2 byte
-    0x55, 0x00,                    //   UNIT_EXPONENT (0)
-    0x65, 0x00,                    //   UNIT (None)
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-//add anothign lot of buttons
-    0x05, 0x09,                    //   USAGE_PAGE (Button)
-    0x19, 0x05,                    //   USAGE_MINIMUM (Button 5)
-    0x29, 0x0C,                    //   USAGE_MAXIMUM (Button 12)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x25, 0x01,                    //   LOGICAL_MAXIMUM (1)
-    0x75, 0x01,                    //   REPORT_SIZE (1)
-    0x95, 0x08,                    //   REPORT_COUNT (8)					1 byte
-    0x55, 0x00,                    //   UNIT_EXPONENT (0)
-    0x65, 0x00,                    //   UNIT (None)
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0xc0                           // END_COLLECTION */
-};
+#include "lowlevel/analogMux.h"
 
 
+struct AnalogMuxConfig mux1;
 
-static const struct {
-	struct usb_hid_descriptor hid_descriptor;
-	struct {
-		uint8_t bReportDescriptorType;
-		uint16_t wDescriptorLength;
-	} __attribute__((packed)) hid_report;
-} __attribute__((packed)) hid_function = {
-	.hid_descriptor = {
-		.bLength = sizeof(hid_function),
-		.bDescriptorType = USB_DT_HID,
-		.bcdHID = 0x0100,
-		.bCountryCode = 0,
-		.bNumDescriptors = 1,
-	},
-	.hid_report = {
-		.bReportDescriptorType = USB_DT_REPORT,
-		.wDescriptorLength = sizeof(hid_report_descriptor),
-	}
-};
 
-const struct usb_endpoint_descriptor hid_endpoint = {
-	.bLength = USB_DT_ENDPOINT_SIZE,
-	.bDescriptorType = USB_DT_ENDPOINT,
-	.bEndpointAddress = 0x81,
-	.bmAttributes = USB_ENDPOINT_ATTR_INTERRUPT,
-	.wMaxPacketSize = 64,   //WAS 4 - CHANGED TO TEST SOMETHING ON THE 2-12-2016 BY J
-	.bInterval = 0x02,
-};
+uint8_t testValue = 0;
 
-const struct usb_interface_descriptor hid_iface = {
-	.bLength = USB_DT_INTERFACE_SIZE,
-	.bDescriptorType = USB_DT_INTERFACE,
-	.bInterfaceNumber = 0,
-	.bAlternateSetting = 0,
-	.bNumEndpoints = 1,
-	.bInterfaceClass = USB_CLASS_HID,
-	.bInterfaceSubClass = 1, /* boot */
-	.bInterfaceProtocol = 2, /* mouse */
-	.iInterface = 0,
-
-	.endpoint = &hid_endpoint,
-
-	.extra = &hid_function,
-	.extra_len = sizeof(hid_function),
-};
-
-#ifdef INCLUDE_DFU_INTERFACE
-const struct usb_dfu_descriptor dfu_function = {
-	.bLength = sizeof(struct usb_dfu_descriptor),
-	.bDescriptorType = DFU_FUNCTIONAL,
-	.bmAttributes = USB_DFU_CAN_DOWNLOAD | USB_DFU_WILL_DETACH,
-	.wDetachTimeout = 255,
-	.wTransferSize = 1024,
-	.bcdDFUVersion = 0x011A,
-};
-
-const struct usb_interface_descriptor dfu_iface = {
-	.bLength = USB_DT_INTERFACE_SIZE,
-	.bDescriptorType = USB_DT_INTERFACE,
-	.bInterfaceNumber = 1,
-	.bAlternateSetting = 0,
-	.bNumEndpoints = 0,
-	.bInterfaceClass = 0xFE,
-	.bInterfaceSubClass = 1,
-	.bInterfaceProtocol = 1,
-	.iInterface = 0,
-
-	.extra = &dfu_function,
-	.extra_len = sizeof(dfu_function),
-};
-#endif
-
-const struct usb_interface ifaces[] = {{
-	.num_altsetting = 1,
-	.altsetting = &hid_iface,
-#ifdef INCLUDE_DFU_INTERFACE
-}, {
-	.num_altsetting = 1,
-	.altsetting = &dfu_iface,
-#endif
-}};
-
-const struct usb_config_descriptor config[] = {{
-	.bLength = USB_DT_CONFIGURATION_SIZE,
-	.bDescriptorType = USB_DT_CONFIGURATION,
-	.wTotalLength = 0,
-#ifdef INCLUDE_DFU_INTERFACE
-	.bNumInterfaces = 2,
-#else
-	.bNumInterfaces = 1,
-#endif
-	.bConfigurationValue = 1,
-	.iConfiguration = 0,
-	.bmAttributes = 0xC0,
-	.bMaxPower = 0x32,
-
-	.interface = ifaces,
-}};
-
-const struct usb_device_descriptor dev_descr = {
-	.bLength = USB_DT_DEVICE_SIZE,
-	.bDescriptorType = USB_DT_DEVICE,
-	.bcdUSB = 0x0200,
-	.bDeviceClass = 0,
-	.bDeviceSubClass = 0,
-	.bDeviceProtocol = 0,
-	.bMaxPacketSize0 = 64,
-	.idVendor = 0x0483,
-	.idProduct = 0x5710,
-	.bcdDevice = 0x0200,
-	.iManufacturer = 1,
-	.iProduct = 2,
-	.iSerialNumber = 3,
-	.bNumConfigurations = 1,
-
-	.config = config
-};
-
-static const char *usb_strings_ascii[] = {
-	"Black Sphere Technologies",
-	"JOYSTICK",
-	"DEMO",
-};
-
-/* Buffer used for control requests. */
-uint8_t usbd_control_buffer[128];
-
-static int usb_strings(usbd_device *dev, struct usbd_get_string_arg *arg)
-{
-	(void)dev;
-	return usbd_handle_string_ascii(arg, usb_strings_ascii, 3);
-}
-
-static int hid_control_request(usbd_device *dev, struct usbd_control_arg *arg)
-{
-	(void)dev;
-
-	if(	(arg->setup.bmRequestType != 0x81) ||
-		(arg->setup.bRequest != USB_REQ_GET_DESCRIPTOR) ||
-		(arg->setup.wValue != 0x2200)) {
-		return USBD_REQ_NEXT;
-	}
-
-	/* Handle the HID report descriptor. */
-	arg->buf = (uint8_t *)hid_report_descriptor;
-	if (arg->len > sizeof(hid_report_descriptor)) {
-		arg->len = sizeof(hid_report_descriptor);
-	}
-
-	return USBD_REQ_HANDLED;
-}
-
-#ifdef INCLUDE_DFU_INTERFACE
-
-void __attribute__((weak))
-usbhid_detach_complete_before_scb_reset_core(void) { /* empty */ }
-
-static void dfu_detach_complete(usbd_device *dev, struct usbd_control_arg *arg)
-{
-	(void)arg;
-	(void)dev;
-
-	usbhid_detach_complete_before_scb_reset_core();
-	scb_reset_core();
-}
-
-static enum usbd_control_result
-dfu_control_request(usbd_device *dev, struct usbd_control_arg *arg)
-{
-	(void)dev;
-
-	if ((arg->setup.bmRequestType != 0x21) ||
-		(arg->setup.bRequest != DFU_DETACH)) {
-		return USBD_REQ_NEXT; /* Only accept class request. */
-	}
-
-	arg->complete = dfu_detach_complete;
-
-	return USBD_REQ_HANDLED;
-}
-#endif
-
-static enum usbd_control_result
-control_callback(usbd_device *dev, struct usbd_control_arg *arg)
-{
-	enum usbd_control_result result;
-
-	result = hid_control_request(dev, arg);
-
-#ifdef INCLUDE_DFU_INTERFACE
-	if (result == USBD_REQ_NEXT) {
-		result = dfu_control_request(dev, arg);
-	}
-#endif
-
-	return result;
-}
-
-static void hid_set_config(usbd_device *dev,
-				const struct usb_config_descriptor *cfg)
-{
-	(void)cfg;
-
-	usbd_ep_setup(dev, 0x81, USB_ENDPOINT_ATTR_INTERRUPT, 4, NULL);
-
-#if defined(__ARM_ARCH_6M__)
-	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB);
-	/* SysTick interrupt every N clock pulses: set reload to N-1 */
-	systick_set_reload(99999*8);
-#else
-	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB_DIV8);
-	/* SysTick interrupt every N clock pulses: set reload to N-1 */
-	systick_set_reload(99999);
-#endif
-	systick_interrupt_enable();
-	systick_counter_enable();
-}
-
-void __attribute__((weak))
-usbhid_target_usbd_after_init_and_before_first_poll(void) { /* empty */ }
-
+void nonUSBSetup(void);
+void readAndPackButtons(uint8_t buttons[], uint8_t numButtons);
+void pollSensors(uint8_t inputs[], uint8_t numInputs);
+void testOutputs(uint8_t inputs[], uint8_t numInputs);
 
 void nonUSBSetup(void){
+	
+	//Turn off JTAG - ie. allow PA15 (JTDI) & PB3 (JTDO) to be used as
+	// GPIO
+	#define AFIO_MAPR_SWJ_CFG_NO_JTAG_SW            (0x2 << 24)
+	AFIO_MAPR |= AFIO_MAPR_SWJ_CFG_JTAG_OFF_SW_ON;//AFIO_MAPR_SWJ_CFG_NO_JTAG_SW;
+	
+	
 	
 	//Button Inputs:
 	//Available button inputs for the STM32F103C8T6 Blue pill board are:
@@ -465,9 +91,9 @@ void nonUSBSetup(void){
 	gpio_clear(GPIOC, bankPins);// pull-down resistors
 	//Now set pull-up (button active low) and pull-down (button active high) internal resistors
 	//	Note: Defaults to pull-down resistors
-	//gpio_set(GPIOA, ?????); //enable pull UP resistors for bank A
-	gpio_set(GPIOB, GPIO10 | GPIO11); //for bank B - the thumbsticks are active LOW
-	//gpio_set(GPIOC, GPIO13); //for bank C
+	gpio_set(GPIOA, GPIO10 | GPIO9 | GPIO8); //enable pull UP resistors for bank A
+	gpio_set(GPIOB, GPIO13 | GPIO12 | GPIO10 | GPIO11); //for bank B - the thumbsticks are active LOW
+	gpio_set(GPIOC, GPIO13); //for bank C
 	
 	
 	
@@ -504,10 +130,7 @@ void nonUSBSetup(void){
 	
 	
 	
-	//I2C:
-	//Two I2C interfaces available: Use I2C1
-	//	PB8:	I2C1_SCL
-	//	PB9:	I2C1_SDA
+
 	
 	
 	
@@ -516,8 +139,38 @@ void nonUSBSetup(void){
 	//	PB14:	SPI2_MISO
 	//	PB15:	SPI2_MOSI
 	
+	
+	//Setup analog mux 1
+	mux1.enPort = GPIOB; //it is just grounded in hardware - overwrite the i2c stuff  just now
+	mux1.enPin = GPIO9;
+	
+	mux1.s0Port = GPIOB;
+	mux1.s1Port = GPIOB;
+	mux1.s2Port = GPIOB;
+	mux1.s3Port = GPIOB;
+	
+	mux1.s0Pin = GPIO12;
+	mux1.s1Pin = GPIO13;
+	mux1.s2Pin = GPIO14;
+	mux1.s3Pin = GPIO15;
+	
+	mux1.sigPort = GPIOA;
+	mux1.sigPin = GPIO3;
+	
+	mux1.con = 0xFFFF; //want to look at all pins
+	
+	setupMux(mux1);
+	enable(mux1);
+	
+	//I2C:
+	//Two I2C interfaces available: Use I2C1
+	//	PB8:	I2C1_SCL
+	//	PB9:	I2C1_SDA
+	
+	
+	
+	
 }
-
 
 
 int main(void)
@@ -525,108 +178,237 @@ int main(void)
 	
 	nonUSBSetup();
 	
-	
-	usbhid_target_init();
+	usbSetup();
 
-	usbd_dev = usbd_init(usbhid_target_usb_driver(), &dev_descr,
-		usbd_control_buffer, sizeof(usbd_control_buffer));
-
-	usbd_register_set_config_callback(usbd_dev, hid_set_config);
-	usbd_register_control_callback(usbd_dev, control_callback);
-	usbd_register_get_string_callback(usbd_dev, usb_strings);
 
 	usbhid_target_usbd_after_init_and_before_first_poll();
 
 	while (1) {
-		usbd_poll(usbd_dev);
+		usbInLoop();//usbd_poll(usbd_dev);
 	}
 }
 
-/* Fake Version */
-void __attribute__((weak))
-usbhid_target_accel_get(int16_t *out_x, int16_t *out_y, int16_t *out_z)
-{
-
-	static int x = 0;
-	static int dir = 1;
-
-	if (out_x != NULL) {
-		*out_x = dir;
-	}
-
-	x += dir;
-	if (x > 60) {
-		dir = -dir;
-		*out_y = 0xAA;
-	}
-	if (x < -60) {
-		dir = -dir;
-		*out_y = 0x00;
-	}
-	
-	
+void buttonReadTest(void){
+	uint16_t aInput = gpio_port_read(GPIOA);
+	uint16_t status = aInput & (GPIO10<<1);
+	uint16_t testGPIOVal = GPIO10<<1;
 }
+
 
 
 void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 	//Contains the button mapping
-
-	uint16_t GPIOInput;
+	//Note: Does not correspond to the buttons in the HID descriptor.
+	//Instead corresponds to the buttons in the output bytes (buttons[])
+	//that are given in.
+	//Starts counting buttons at 1
+	
 	
 	for (int i=0;i<numButtons/8; i++){
 		buttons[i] = 0x00;
 	}
 	
-	//Bank A:
-	//PA15, PA10, PA9, PA8
-	//Mapping:
-	//	PA15	Toggle Switch	Active HIGH		Button 3
-	//	PA10	NOT USED
-	//	PA9		NOT USED
-	//	PA8		NOT USED
-	GPIOInput = gpio_port_read(GPIOA);
-	if ((GPIOInput & GPIO15) == GPIO15) {buttons[3/8] |= 1 << 0x03;}
+	//Store the button mapping in arrays to make it MUCH easier to 
+	//	change, and to reduce code duplication
+	//0xFF represents no switch connected
+	//The buttons are what port
+	int portMapping[40];
+	//Buttons are active high?
+	//The bits of levelMapping are what logic level an active button is
+	uint32_t levelMapping = 0;
+	levelMapping = 0xFFFFFFFF;
+	//What pin is what button. Local to the port
+	uint16_t pinMapping[40];
 	
-	//BANK B:
-	//PB10, PB11, PB7, PB5, PB4, PB3, PB13, PB12
-	//Mapping:
-	//	PB10	Left Thumbstick Button		Active LOW		Button 1
-	//	PB11	Right Thumbstick Button		Active LOW		Button 2
-	//	PB7		Toggle Switch	Active HIGH		Button 4
-	//	PB6		Toggle Switch	Active HIGH		Button 5
-	//	PB5		Toggle Switch	Active HIGH		Button 6
-	//	PB4		Toggle Switch	Active HIGH		Button 7
-	//	PB3		NOT USED
-	//	PB13	NOT USED
-	//	PB12	NOT USED
-	GPIOInput = gpio_port_read(GPIOB);
-	if ((GPIOInput & GPIO10) == GPIO10) {buttons[1/8] |= 1 << 0x01;}
-	if ((GPIOInput & GPIO11) == GPIO11) {buttons[2/8] |= 1 << 0x02;}
-	if ((GPIOInput & GPIO7) == GPIO7) {buttons[4/8] |= 1 << 0x04;}
-	if ((GPIOInput & GPIO6) == GPIO6) {buttons[5/8] |= 1 << 0x05;}
-	if ((GPIOInput & GPIO5) == GPIO5) {buttons[6/8] |= 1 << 0x06;}
-	if ((GPIOInput & GPIO4) == GPIO4) {buttons[7/8] |= 1 << 0x07;}////////////////////
+	//Button 0
+	// NC
+	portMapping[0] = GPIOC; //red PB
+	pinMapping[0] = GPIO13;
+	//Button 1
+	// NC
+	portMapping[1] = GPIOB; //red PB
+	pinMapping[1] = GPIO5; 
+	//Button 2
+	// NC
+	portMapping[2] = 0xFF; //analog mux 1 - red PB
+	pinMapping[2] = 2; //
+	//Button 3
+	// NC
+	portMapping[3] = GPIOB; //red PB
+	pinMapping[3] = GPIO4; 
+	//Button 4
+	portMapping[4] = GPIOB; //red PB
+	pinMapping[4] = GPIO3;
+	//Button 5
+	portMapping[5] = GPIOB; //red PB
+	pinMapping[5] = GPIO6;
+	//Button 6
+	portMapping[6] = GPIOA; //red PB
+	pinMapping[6] = GPIO3;
+	//Button 7
+	portMapping[7] = 0xFF; //analog mux 1, red PB
+	pinMapping[7] = 0x01;
+	//Button 8
+	portMapping[8] = GPIOA; //red PB
+	pinMapping[8] = GPIO10;
+	//Button 9
+	portMapping[9] = GPIOA; //red PB
+	pinMapping[9] = GPIO11;
+	//Button 10
+	portMapping[10] = GPIOA; //red PB
+	pinMapping[10] = GPIO12;
+	//Button 11
+	portMapping[11] = GPIOA; //red PB
+	pinMapping[11] = GPIO15;
+	//Button 12
+	portMapping[12] = GPIOB; //red PB
+	pinMapping[12] = GPIO6;
+	//Button 13
+	portMapping[13] = GPIOB; //red PB
+	pinMapping[13] = GPIO7;
+	//Button 14
+	portMapping[14] = 0xFF; //analog mux 1, red PB
+	pinMapping[14] = 0x00;
+	//Button 15
+	portMapping[15] = 0xFF; //none
+	pinMapping[15] = 0xFF; //none
+	//Button 16
+	portMapping[16] = 0xFF; //analog mux1, toggle
+	pinMapping[16] = 17;
+	//Button 17
+	portMapping[17] = 0xFF; //analog mux1, toggle
+	pinMapping[17] = 18;
+	//Button 18
+	portMapping[18] = 0xFF;//analog mux1, toggle
+	pinMapping[18] = 9;
+	//Button 19
+	portMapping[19] = 0xFF;//analog mux1, toggle
+	pinMapping[19] = 12;
+	//Button 20
+	portMapping[20] = 0xFF;//analog mux1, toggle
+	pinMapping[20] = 15;
+	//Button 21
+	portMapping[21] = 0xFF;//analog mux1, toggle
+	pinMapping[21] = 8;
+	//Button 22
+	portMapping[22] = 0xFF;//analog mux1, toggle
+	pinMapping[22] = 13;
+	//Button 23
+	portMapping[23] = 0xFF;//analog mux1, toggle
+	pinMapping[23] = 14;
 	
-	//Bank C:
-	//PC13
-	//Mapping:
-	//	PC13	NOT USED
-	GPIOInput = gpio_port_read(GPIOC);
-	
+	uint16_t aInput = gpio_port_read(GPIOA);
+	uint16_t bInput = gpio_port_read(GPIOB);
+	uint16_t cInput = gpio_port_read(GPIOC);
+	uint16_t GPIOInput;
+	for (int i=0;i<24;i++){
+		if (portMapping[i] != 0xFF){
+			//Have a mapping here
+			switch (portMapping[i]){
+				case GPIOA:
+					GPIOInput = aInput;
+					break;
+				case GPIOB:
+					GPIOInput = bInput;
+					break;
+				case GPIOC:
+					GPIOInput = cInput;
+					break;
+				default:
+					GPIOInput = 0;
+			}
+					
+			if (pinMapping[i] != 0xFF){
+				//have a mapping here
+				//check active high or active low
+				if ((levelMapping & (1 << i)) != 0){
+					//Active High
+					if ((GPIOInput & (pinMapping[i]<<1)) != 0) {
+						buttons[i/8] |= 1 << (i - 8*(i/8)); //FIX ME replace with  i % 8 ?
+						}
+				} else{
+					//Active low
+					if ((GPIOInput & (pinMapping[i]<<1)) == 0) {
+						buttons[i/8] |= 1 << (i - 8*(i/8)); //FIX ME replace with  i % 8 ?
+						}
+				}
+			} else{
+				//Either have no mapping, or a mux
+				if (pinMapping[i] != 0xFF) {
+					// it's a mux!
+					uint8_t buttonVal = 0x00;//readOne(mux1, pinMapping[i]);
+					if (buttonVal >= 0x7F){
+						//set the button
+						buttons[i/8] |= 1 << (i - 8*(i/8)); //FIX ME replace with  i % 8 ?
+					}
+				} else{
+					//no button mapping in this section
+				}
+			}
+
+		}	
+	}
 }
 
 
 void pollSensors(uint8_t inputs[], uint8_t numInputs){
+	
+	bool hatSwitch = true;
+	uint8_t threshold = 50;
+	uint8_t half = 127;
+	
+	uint8_t deadzone[13];
+	//+- deadzone amount gets put to zero
+	// [] limits
+	deadzone[0] = 50;
+	deadzone[1] = 50;
+	deadzone[2] = 50;
+	deadzone[3] = 50;
+	deadzone[4] = 50;
+	deadzone[5] = 50;
+	deadzone[6] = 50;
+	deadzone[7] = 50;
+	deadzone[8] = 50;
+	deadzone[9] = 50;
+	deadzone[10] = 50;
+	deadzone[11] = 50;
+	deadzone[12] = 50;
+
+	
+	uint8_t correctionStart[13];
+	for (int i=0;i<13;i++){
+		correctionStart[i] = deadzone[i];
+	}
+	
+	
 	uint16_t joyRaw;
+	uint8_t joy;
 	//read buttons
-	for (int i=0;i<11;i++){
+	for (int i=0;i<numInputs;i++){
 		inputs[i] = 0x00;
 	}
-	readAndPackButtons(&inputs[11], 16);
+	//readAndPackButtons(&inputs[13+1], numInputs-1-13);
+	uint8_t *hat = &inputs[13];
 	
-	//read ADC
+	//return;
+	//Read ADC1
+	
+	//	PA0:	ADC1, CH0
+	//	PA1:	ADC1, CH1
+	//	PA2:	ADC1, CH2
+	//	PA3:	ADC1, CH3
+	//	PA4:	ADC1, CH4
+	//	PA5:	ADC1, CH5
+	//	PA6:	ADC1, CH6
+	//	PA7:	ADC1, CH7
+	//	PB0:	ADC1, CH8
+	//	PB1:	ADC1, CH9
+	
 	uint8_t channel_array[16]; //array of channels to read this time
-	channel_array[0] = 7; //want to read channel 7 -(as it is PA7)
+
+	//Read thumb/joystick L
+	//read ADC
+	channel_array[0] = 0; //want to read channel 0 -(as it is PA0)
 	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
 	//start the ADC conversion directly (not trigger mode)
 	adc_start_conversion_direct(ADC1);
@@ -635,20 +417,10 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	//Hence read it
 	joyRaw = ADC_DR(ADC1);
 	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	//Now, the reading goes from 0->255. With a joystick value of -127 -> 127.
-	//Windows interprets:
-	//		0->127 as 0->127
-	//		128->255 as -127 -> -1 (or 0)
-	//There is obviously a discontinuity there -> hence remap and remove it
-	if (joy <= 127){
-		joy = joy + 127;
-	} else{
-		joy = joy - 127;
-	}
-	inputs[0] = joy;
+	inputs[0] = joy; 
 	
-	//read channel 6 - PA6
-	channel_array[0] = 6; //want to read channel 6 -(as it is PA6)
+	//read channel 1 - PA1
+	channel_array[0] = 1; //want to read channel 1 -(as it is PA1)
 	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
 	//start the ADC conversion directly (not trigger mode)
 	adc_start_conversion_direct(ADC1);
@@ -656,41 +428,236 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
 	//Hence read it
 	joyRaw = ADC_DR(ADC1);
-	joy2 = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	//Now, the reading goes from 0->255. With a joystick value of -127 -> 127.
-	//Windows interprets:
-	//		0->127 as 0->127
-	//		128->255 as -127 -> -1 (or 0)
-	//There is obviously a discontinuity there -> hence remap and remove it
-	if (joy2 <= 127){
-		joy2 = joy2 + 127;
-	} else{
-		joy2 = joy2 - 127;
+	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[1] = joy;
+	
+
+
+	//read PSP thumbstick L
+	//read channel 4 PA4
+	channel_array[0] = 4; 
+	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
+	//start the ADC conversion directly (not trigger mode)
+	adc_start_conversion_direct(ADC1);
+	//Wait until it's finished
+	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
+	//Hence read it
+	joyRaw = ADC_DR(ADC1);
+	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[2] = joy;
+	//read channel 5 - PA5
+	channel_array[0] = 5; 
+	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
+	//start the ADC conversion directly (not trigger mode)
+	adc_start_conversion_direct(ADC1);
+	//Wait until it's finished
+	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
+	//Hence read it
+	joyRaw = ADC_DR(ADC1);
+	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[3] = joy;
+	
+	//Convert to buttons or hat switch
+	uint8_t thumbstatus = 0x00;
+	if (inputs[2] > threshold + half){
+		//up
+		thumbstatus |= 0b0001;
+	} else if (inputs[2] < half -threshold){
+		//down
+		thumbstatus |= 0b0010;
+	} 
+	if (inputs[3] > half + threshold){
+		//left
+		thumbstatus |= 0b0100;
+	} else if (inputs[3] < half -threshold){
+		//right
+		thumbstatus |= 0b1000;
 	}
-	inputs[1] = joy2;
+	
+	//The 4 cardinal directions are provided as the 4 bits of thumbstatus
+	//but hat switches number the directions (however many you tell it)
+	//as numbers, going clockwise (?)
+	//hence must convert from one to the other
+	//mapping[cardinal direction/thumbstatus bits] = hat switch number
+	//hat switch numbers start from 0
+	uint8_t mapping[11];
+	mapping[0] = 0x0F; //nothing
+	mapping[1] = 0; //N
+	mapping[2] = 4; //S
+	mapping[3] = 0x0F; //nothing
+	mapping[4] = 6; //W
+	mapping[5] = 7; //NW
+	mapping[6] = 5; //SW
+	mapping[7] = 0x0F; //nothing
+	mapping[8] = 2; //E
+	mapping[9] = 1;//NE
+	mapping[10] = 3;//SE
+	
+	if (hatSwitch){
+		hat[0] |= mapping[thumbstatus];
+	} else{
+		//Double this thumbstick as 4 separate buttons
+		//hat[0] = thumbstatus << 4;		
+	}
+	
+	
+	
+	//Read thumb/joystick 2
+	//read channel 8 - PB0
+	channel_array[0] = 8; //want to read channel 8 -(as it is PB0)
+	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
+	//start the ADC conversion directly (not trigger mode)
+	adc_start_conversion_direct(ADC1);
+	//Wait until it's finished
+	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
+	//Hence read it
+	joyRaw = ADC_DR(ADC1);
+	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[4] = joy;
+	//read channel 9 - PB1
+	channel_array[0] = 9; //want to read channel 9 -(as it is PB1)
+	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
+	//start the ADC conversion directly (not trigger mode)
+	adc_start_conversion_direct(ADC1);
+	//Wait until it's finished
+	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
+	//Hence read it
+	joyRaw = ADC_DR(ADC1);
+	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[5] = joy;
+	
+	
+	
+	
+	//read PSP thumbstick R
+	//read channel 6 PA6
+	channel_array[0] = 6; 
+	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
+	//start the ADC conversion directly (not trigger mode)
+	adc_start_conversion_direct(ADC1);
+	//Wait until it's finished
+	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
+	//Hence read it
+	joyRaw = ADC_DR(ADC1);
+	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[6] = joy;
+	//read channel 7 - PA7
+	channel_array[0] = 7; 
+	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
+	//start the ADC conversion directly (not trigger mode)
+	adc_start_conversion_direct(ADC1);
+	//Wait until it's finished
+	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
+	//Hence read it
+	joyRaw = ADC_DR(ADC1);
+	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	inputs[7] = joy;
+	
+	//Convert to buttons or hat switch
+	thumbstatus = 0x00;
+	if (inputs[6] > threshold + half){
+		//up
+		thumbstatus |= 0b0001;
+	} else if (inputs[6] < half -threshold){
+		//down
+		thumbstatus |= 0b0010;
+	} 
+	if (inputs[7] > half + threshold){
+		//left
+		thumbstatus |= 0b0100;
+	} else if (inputs[7] < half -threshold){
+		//right
+		thumbstatus |= 0b1000;
+	}
+	
+	if (hatSwitch){
+		hat[0] |= mapping[thumbstatus] <<4;
+	} else{
+		//Double this thumbstick as 4 separate buttons
+		//hat[0] = thumbstatus << 8;		
+	}
+
+	
+
+	
+	
+	//Read the analogue inputs that are via the analog multiplexer
+	inputs[8] = readOne(mux1, 3);
+	inputs[9] = readOne(mux1, 4);
+	//inputs[10] = readOne(mux1, 5); //this pot is faulty
+	inputs[11] = readOne(mux1, 6);
+	inputs[12] = readOne(mux1, 7);
+	
+	//trim
+	uint8_t trimOutMap[] = {0, 1, 4, 5};
+	uint8_t trimInMap[] = {8, 9, 11, 12};
+	
+ 	int testVal;
+	for (int i=0;i<4;i++){
+		testVal = inputs[trimOutMap[i]] + (inputs[trimInMap[i]]-0x7F)/2;
+		//have to check against overflow because wrapping around is not desirable behaviour
+		if (testVal > 0xFF){
+			inputs[trimOutMap[i]] = 0xFF;
+		} else if (testVal < 0) {
+			inputs[trimOutMap[i]] = 0;
+		} else {
+			inputs[trimOutMap[i]] = (uint8_t) testVal;
+		}
+	} 
+	
+	
+	//apply deadzones
+	for (int i=0;i<13;i++){
+		if ((inputs[i] <= (0xFF/2 + deadzone[i])) && (inputs[i] >= (0xFF/2 - deadzone[i]))){
+			//apply the deadzone
+			inputs[i] = 0xFF/2;
+		} else {
+			//apply deadzone correction
+			if (inputs[i] > 0xFF/2) {
+				// |-----|----x-----|
+				// a     b          c
+				// val = (x-b)*(c-a)/(c-b) + a
+				inputs[i] = 0xFF/2 + (inputs[i] - (0xFF/2 + correctionStart[i])) * (0xFF-0xFF/2)/(0xFF - (0xFF/2+correctionStart[i]));
+			} else {
+				// |-----x-----|-----|
+				// c           b     a
+				// val = (x-b)*(c-a)/(c-b) + a
+				inputs[i] = 0xFF/2 + (inputs[i] - (0xFF/2 - correctionStart[i])) * (0 - 0xFF/2)/(0 - (0xFF/2-correctionStart[i]));
+			}
+		}
+	}
+	
+	
+	
 	
 	
 }
 
+void testOutputs(uint8_t inputs[], uint8_t numInputs){
+	//for (int i=0;i<numInputs;i++){
+	//	inputs[i] = testValue;
+	//}
+	//inputs[0] = testValue;
+	inputs[6] = testValue;
+	inputs[7] = testValue;
+	testValue++;
+	if (testValue >255){ //not sure how a uint8_t overflows
+		testValue = 0;
+	}
+}
 
 void sys_tick_handler(void)
 {
-	int16_t x = 0, y = 0, z = 0;
-	uint8_t buf[5];
-	
-	//pollSensors(buf, 13);
-
-	usbhid_target_accel_get(&x, &y, &z);
-	joy++;
-	if (joy >= 255){
-		joy = 0;
+	uint8_t buf[13 + 1 + 5];
+	for (int i=0;i<(13+1+5);i++){
+		buf[i] = 0xFF;
 	}
+	//buttonReadTest();
+	
+	pollSensors(buf, 13+1+5);
+	//testOutputs(buf, 13+1+5);
+	buf[6] = buf[0];
+	buf[7] = buf[1];
 
-	buf[0] = joy;
-	buf[1] = joy;
-	buf[2] = joy;
-	buf[3] = joy;
-	buf[4] = joy;
-
-	usbd_ep_write_packet(usbd_dev, 0x81, buf, sizeof(buf));
+	writeToEndpoint(0x81, buf, sizeof(buf));
 }
