@@ -73,27 +73,29 @@ void nonUSBSetup(void){
 	//	PA8
 	//	PB13
 	//	PB12
-	//Must setup banks of pins at a time
+	
+	//Must setup banks of pins at a time	
 	//		Bank A:
 	rcc_periph_clock_enable(RCC_GPIOA);
-	uint16_t bankPins = GPIO15 | GPIO10 | GPIO9 | GPIO8;
+	uint16_t bankPins = GPIO8 | GPIO9 | GPIO10 | GPIO15;
 	gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, bankPins);
 	gpio_clear(GPIOA, bankPins); // turn to pull-down resistors
+	
 	//		Bank B
 	rcc_periph_clock_enable(RCC_GPIOB);
 	bankPins = GPIO10 | GPIO11 | GPIO7 | GPIO6 | GPIO5 | GPIO4 | GPIO3 | GPIO13 | GPIO12;
 	gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, bankPins);
 	gpio_clear(GPIOB, bankPins); //turn to pull-down resistors
+	
 	//		Bank C
 	rcc_periph_clock_enable(RCC_GPIOC);
 	bankPins = GPIO13;
 	gpio_set_mode(GPIOC, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, bankPins);
 	gpio_clear(GPIOC, bankPins);// pull-down resistors
-	//Now set pull-up (button active low) and pull-down (button active high) internal resistors
+	
+	//Now set pull-up (button active low) and pull-down 
 	//	Note: Defaults to pull-down resistors
-	gpio_set(GPIOA, GPIO10 | GPIO9 | GPIO8); //enable pull UP resistors for bank A
 	gpio_set(GPIOB, GPIO13 | GPIO12 | GPIO10 | GPIO11); //for bank B - the thumbsticks are active LOW
-	gpio_set(GPIOC, GPIO13); //for bank C
 	
 	
 	
@@ -140,10 +142,7 @@ void nonUSBSetup(void){
 	//	PB15:	SPI2_MOSI
 	
 	
-	//Setup analog mux 1
-	mux1.enPort = GPIOB; //it is just grounded in hardware - overwrite the i2c stuff  just now
-	mux1.enPin = GPIO9;
-	
+	//Setup analog mux 1	
 	mux1.s0Port = GPIOB;
 	mux1.s1Port = GPIOB;
 	mux1.s2Port = GPIOB;
@@ -157,10 +156,13 @@ void nonUSBSetup(void){
 	mux1.sigPort = GPIOA;
 	mux1.sigPin = GPIO3;
 	
+	mux1.enPort = mux1.s0Port; //it is just grounded in hardware => use same pin to avoid wasting another uC pin
+	mux1.enPin = mux1.s0Pin;
+	
 	mux1.con = 0xFFFF; //want to look at all pins
 	
 	setupMux(mux1);
-	enable(mux1);
+	//enable(mux1); //grounded in hardware
 	
 	//I2C:
 	//Two I2C interfaces available: Use I2C1
@@ -194,6 +196,24 @@ void buttonReadTest(void){
 	uint16_t testGPIOVal = GPIO10<<1;
 }
 
+uint8_t readChannel(uint32_t ADC, uint8_t channel){
+	uint8_t channel_array[16]; //array of channels to read this time
+
+	//read ADC
+	channel_array[0] = channel; //want to read channel 0 -(as it is PA0)
+	adc_set_regular_sequence(ADC, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
+	//start the ADC conversion directly (not trigger mode)
+	adc_start_conversion_direct(ADC);
+	//Wait until it's finished
+	while (!(ADC_SR(ADC) & ADC_SR_EOC));
+	//Hence read it
+	uint16_t joyRaw = ADC_DR(ADC);
+	uint8_t joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
+	return joy;
+	
+}
+
+
 
 
 void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
@@ -219,83 +239,87 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 	levelMapping = 0xFFFFFFFF;
 	//What pin is what button. Local to the port
 	uint16_t pinMapping[40];
+	// Set empty port/pinmapping
+	for (int i=0;i<40;i++){
+		portMapping[i] = 0xFF;
+		pinMapping[i] = 0xFF;
+	}
+	
 	
 	//Button 0
 	// NC
 	portMapping[0] = GPIOC; //red PB
 	pinMapping[0] = GPIO13;
 	//Button 1
-	// NC
-	portMapping[1] = GPIOB; //red PB
-	pinMapping[1] = GPIO5; 
+//	portMapping[1] = GPIOB; //red PB
+//	pinMapping[1] = GPIO5; 
 	//Button 2
 	// NC
-	portMapping[2] = 0xFF; //analog mux 1 - red PB
-	pinMapping[2] = 2; //
+//	portMapping[2] = 0xFF; //analog mux 1 - red PB
+//	pinMapping[2] = 2; //
 	//Button 3
-	// NC
-	portMapping[3] = GPIOB; //red PB
-	pinMapping[3] = GPIO4; 
+//	portMapping[3] = 0xFF; //analog mux 1, red PB
+//	pinMapping[3] = 0x01;
 	//Button 4
-	portMapping[4] = GPIOB; //red PB
-	pinMapping[4] = GPIO3;
+//	portMapping[4] = GPIOB; //red PB
+//	pinMapping[4] = GPIO6;
 	//Button 5
 	portMapping[5] = GPIOB; //red PB
-	pinMapping[5] = GPIO6;
+	pinMapping[5] = GPIO5;
 	//Button 6
-	portMapping[6] = GPIOA; //red PB
-	pinMapping[6] = GPIO3;
+	portMapping[6] = GPIOB; //red PB
+	pinMapping[6] = GPIO6;
 	//Button 7
-	portMapping[7] = 0xFF; //analog mux 1, red PB
-	pinMapping[7] = 0x01;
+	portMapping[3] = GPIOB; //red PB
+	pinMapping[7] = GPIO7; 
 	//Button 8
 	portMapping[8] = GPIOA; //red PB
-	pinMapping[8] = GPIO10;
+	pinMapping[8] = GPIO8;
 	//Button 9
-	portMapping[9] = GPIOA; //red PB
-	pinMapping[9] = GPIO11;
+	portMapping[9] = GPIOA;
+	pinMapping[9] = GPIO9;
 	//Button 10
-	portMapping[10] = GPIOA; //red PB
-	pinMapping[10] = GPIO12;
+	portMapping[10] = GPIOA; 
+	pinMapping[10] = GPIO10;
 	//Button 11
-	portMapping[11] = GPIOA; //red PB
-	pinMapping[11] = GPIO15;
+//	portMapping[11] = 0xFF;
+//	pinMapping[11] = 0xFF;
 	//Button 12
-	portMapping[12] = GPIOB; //red PB
-	pinMapping[12] = GPIO6;
+//	portMapping[12] = GPIOB; //red PB
+//	pinMapping[12] = GPIO6;
 	//Button 13
-	portMapping[13] = GPIOB; //red PB
-	pinMapping[13] = GPIO7;
+//	portMapping[13] = GPIOB; //red PB
+//	pinMapping[13] = GPIO7;
 	//Button 14
-	portMapping[14] = 0xFF; //analog mux 1, red PB
-	pinMapping[14] = 0x00;
+//	portMapping[14] = 0xFF; //analog mux 1, red PB
+//	pinMapping[14] = 0x00;
 	//Button 15
-	portMapping[15] = 0xFF; //none
-	pinMapping[15] = 0xFF; //none
+//	portMapping[15] = 0xFF; //none
+//	pinMapping[15] = 0xFF; //none
 	//Button 16
-	portMapping[16] = 0xFF; //analog mux1, toggle
-	pinMapping[16] = 17;
+//	portMapping[16] = 0xFF; //analog mux1, toggle
+//	pinMapping[16] = 17;
 	//Button 17
-	portMapping[17] = 0xFF; //analog mux1, toggle
-	pinMapping[17] = 18;
+//	portMapping[17] = 0xFF; //analog mux1, toggle
+//	pinMapping[17] = 18;
 	//Button 18
-	portMapping[18] = 0xFF;//analog mux1, toggle
-	pinMapping[18] = 9;
+//	portMapping[18] = 0xFF;//analog mux1, toggle
+//	pinMapping[18] = 9;
 	//Button 19
-	portMapping[19] = 0xFF;//analog mux1, toggle
-	pinMapping[19] = 12;
+//	portMapping[19] = 0xFF;//analog mux1, toggle
+//	pinMapping[19] = 12;
 	//Button 20
-	portMapping[20] = 0xFF;//analog mux1, toggle
-	pinMapping[20] = 15;
+//	portMapping[20] = 0xFF;//analog mux1, toggle
+//	pinMapping[20] = 15;
 	//Button 21
-	portMapping[21] = 0xFF;//analog mux1, toggle
-	pinMapping[21] = 8;
+//	portMapping[21] = 0xFF;//analog mux1, toggle
+//	pinMapping[21] = 8;
 	//Button 22
-	portMapping[22] = 0xFF;//analog mux1, toggle
-	pinMapping[22] = 13;
+//	portMapping[22] = 0xFF;//analog mux1, toggle
+//	pinMapping[22] = 13;
 	//Button 23
-	portMapping[23] = 0xFF;//analog mux1, toggle
-	pinMapping[23] = 14;
+//	portMapping[23] = 0xFF;//analog mux1, toggle
+//	pinMapping[23] = 14;
 	
 	uint16_t aInput = gpio_port_read(GPIOA);
 	uint16_t bInput = gpio_port_read(GPIOB);
@@ -323,12 +347,12 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 				//check active high or active low
 				if ((levelMapping & (1 << i)) != 0){
 					//Active High
-					if ((GPIOInput & (pinMapping[i]<<1)) != 0) {
+					if ((GPIOInput & (pinMapping[i])) != 0) {//<<1)) != 0) {
 						buttons[i/8] |= 1 << (i - 8*(i/8)); //FIX ME replace with  i % 8 ?
 						}
 				} else{
 					//Active low
-					if ((GPIOInput & (pinMapping[i]<<1)) == 0) {
+					if ((GPIOInput & (pinMapping[i])) == 0) {//<<1)) == 0) {
 						buttons[i/8] |= 1 << (i - 8*(i/8)); //FIX ME replace with  i % 8 ?
 						}
 				}
@@ -381,13 +405,15 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	}
 	
 	
-	uint16_t joyRaw;
-	uint8_t joy;
-	//read buttons
+	//Zero Controls
 	for (int i=0;i<numInputs;i++){
 		inputs[i] = 0x00;
 	}
-	//readAndPackButtons(&inputs[13+1], numInputs-1-13);
+	
+	// Buttons
+	readAndPackButtons(&inputs[13+1], numInputs-1-13);
+	
+	return;
 	uint8_t *hat = &inputs[13];
 	
 	//return;
@@ -404,58 +430,19 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	//	PB0:	ADC1, CH8
 	//	PB1:	ADC1, CH9
 	
-	uint8_t channel_array[16]; //array of channels to read this time
-
 	//Read thumb/joystick L
-	//read ADC
-	channel_array[0] = 0; //want to read channel 0 -(as it is PA0)
-	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
-	//start the ADC conversion directly (not trigger mode)
-	adc_start_conversion_direct(ADC1);
-	//Wait until it's finished
-	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
-	//Hence read it
-	joyRaw = ADC_DR(ADC1);
-	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	inputs[0] = joy; 
+	inputs[0] = readChannel(ADC1, 0);
 	
 	//read channel 1 - PA1
-	channel_array[0] = 1; //want to read channel 1 -(as it is PA1)
-	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
-	//start the ADC conversion directly (not trigger mode)
-	adc_start_conversion_direct(ADC1);
-	//Wait until it's finished
-	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
-	//Hence read it
-	joyRaw = ADC_DR(ADC1);
-	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	inputs[1] = joy;
-	
-
+	inputs[1] = readChannel(ADC1, 1);
 
 	//read PSP thumbstick L
 	//read channel 4 PA4
-	channel_array[0] = 4; 
-	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
-	//start the ADC conversion directly (not trigger mode)
-	adc_start_conversion_direct(ADC1);
-	//Wait until it's finished
-	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
-	//Hence read it
-	joyRaw = ADC_DR(ADC1);
-	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	inputs[2] = joy;
+	inputs[2] = readChannel(ADC1, 4);
+
+	
 	//read channel 5 - PA5
-	channel_array[0] = 5; 
-	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
-	//start the ADC conversion directly (not trigger mode)
-	adc_start_conversion_direct(ADC1);
-	//Wait until it's finished
-	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
-	//Hence read it
-	joyRaw = ADC_DR(ADC1);
-	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	inputs[3] = joy;
+	inputs[3] = readChannel(ADC1, 5);
 	
 	//Convert to buttons or hat switch
 	uint8_t thumbstatus = 0x00;
@@ -504,54 +491,19 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	
 	//Read thumb/joystick 2
 	//read channel 8 - PB0
-	channel_array[0] = 8; //want to read channel 8 -(as it is PB0)
-	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
-	//start the ADC conversion directly (not trigger mode)
-	adc_start_conversion_direct(ADC1);
-	//Wait until it's finished
-	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
-	//Hence read it
-	joyRaw = ADC_DR(ADC1);
-	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	inputs[4] = joy;
-	//read channel 9 - PB1
-	channel_array[0] = 9; //want to read channel 9 -(as it is PB1)
-	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
-	//start the ADC conversion directly (not trigger mode)
-	adc_start_conversion_direct(ADC1);
-	//Wait until it's finished
-	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
-	//Hence read it
-	joyRaw = ADC_DR(ADC1);
-	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	inputs[5] = joy;
+	inputs[4] = readChannel(ADC1, 8);
 	
+	//read channel 9 - PB1
+	inputs[5] = readChannel(ADC1, 9);
 	
 	
 	
 	//read PSP thumbstick R
 	//read channel 6 PA6
-	channel_array[0] = 6; 
-	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
-	//start the ADC conversion directly (not trigger mode)
-	adc_start_conversion_direct(ADC1);
-	//Wait until it's finished
-	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
-	//Hence read it
-	joyRaw = ADC_DR(ADC1);
-	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	inputs[6] = joy;
+	inputs[6] = readChannel(ADC1, 6);
+	
 	//read channel 7 - PA7
-	channel_array[0] = 7; 
-	adc_set_regular_sequence(ADC1, 1, channel_array); //tell ADC1 to read the channels in channel_array. Also tell it is there is one of those
-	//start the ADC conversion directly (not trigger mode)
-	adc_start_conversion_direct(ADC1);
-	//Wait until it's finished
-	while (!(ADC_SR(ADC1) & ADC_SR_EOC));
-	//Hence read it
-	joyRaw = ADC_DR(ADC1);
-	joy = (uint8_t) ((joyRaw >> 4 ) & 0xFF); //truncate the 12 bit ADC to fit in a uint8
-	inputs[7] = joy;
+	inputs[7] = readChannel(ADC1, 7);
 	
 	//Convert to buttons or hat switch
 	thumbstatus = 0x00;
