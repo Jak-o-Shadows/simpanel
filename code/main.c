@@ -47,7 +47,7 @@ void nonUSBSetup(void);
 void readAndPackButtons(uint8_t buttons[], uint8_t numButtons);
 void pollSensors(uint8_t inputs[], uint8_t numInputs);
 void testOutputs(uint8_t inputs[], uint8_t numInputs);
-
+void debounceButtons(uint8_t buttons[], uint8_t numButtons, uint8_t buttonState[], uint8_t buttonIntegratorCount[]);
 void nonUSBSetup(void){
 	
 	//Turn off JTAG - ie. allow PA15 (JTDI) & PB3 (JTDO) to be used as
@@ -171,7 +171,9 @@ void nonUSBSetup(void){
 	
 	
 	
-	
+	// Temporary output pin for testing
+	rcc_periph_clock_enable(RCC_GPIOA);
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO1);
 }
 
 
@@ -214,6 +216,70 @@ uint8_t readChannel(uint32_t ADC, uint8_t channel){
 }
 
 
+void setBit(uint8_t A[], uint8_t k) {
+	// Set the kth bit in array A of uint8
+	A[k/8] |= 1 << (k%8);
+}
+
+void clearBit(uint8_t A[], uint8_t k){
+	// Clear the kth bit in array A of uint8
+	A[k/8] &= ~(1 << (k%8));
+}
+
+bool getBit(uint8_t A[], uint8_t k){
+	// Get the kth bit in array A of uint8
+	return (bool) (A[k/8] & (1 << (k%8)) );
+}
+
+
+void debounceButtons(uint8_t buttons[], uint8_t numButtons, uint8_t buttonState[], uint8_t buttonIntegratorCount[]){
+	// Debounce the given buttons
+	//	Simply checks if the button state is consistent for a given number of counts
+	//INPUTS:
+	//	buttons
+		//the array of uint8_t's. Each bit is the button state
+	//	numButtons
+		//number of buttons. The array "buttons" is 1/8th of this
+	//	buttonState
+		//Each bit is button state. is the output
+	//	buttontIntegratorCount
+	//		The count of the integrator for each button.
+	//Inspired by http://www.kennethkuhn.com/electronics/debounce.c
+	//	ie. that, but in a loop
+	
+	uint8_t MAXIMUM = 30;
+	
+	for (int i=0;i<numButtons*8;i++){
+		bool input  = getBit(buttons, i);
+		//step 1: Update the integrator based on the input signal. Note that the
+		// integrator follows the input, decreasing or increasing towards the
+		// limits as determined by the input state (0 or 1). 
+		if (!input){
+			if (buttonIntegratorCount[i] > 0){
+				buttonIntegratorCount[i]--;
+			}
+		} else if (buttonIntegratorCount[i] < MAXIMUM) {
+			buttonIntegratorCount[i]++;
+		}
+		
+		//Step 2: Update the output state based on the integrator.  Note that
+		// the output will only change states if the integrator has reached a
+		// limit, either 0 or MAXIMUM.
+		if (buttonIntegratorCount[i] == 0){
+			clearBit(buttonState, i); //clear the button
+		} else if (buttonIntegratorCount[i] >= MAXIMUM){
+			buttonIntegratorCount[i] = MAXIMUM; //just in case it is >MAXIMUM by corruption
+			setBit(buttonState, i); //set it
+		}
+				
+		
+		
+	}
+
+}
+
+
+
 
 
 void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
@@ -248,8 +314,8 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 	
 	//Button 0
 	// NC
-	portMapping[0] = GPIOC; //red PB
-	pinMapping[0] = GPIO13;
+//	portMapping[0] = GPIOC; //red PB
+//	pinMapping[0] = GPIO13;
 	//Button 1
 //	portMapping[1] = GPIOB; //red PB
 //	pinMapping[1] = GPIO5; 
@@ -320,6 +386,11 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 	//Button 23
 //	portMapping[23] = 0xFF;//analog mux1, toggle
 //	pinMapping[23] = 14;
+
+/* 	for (int i=0;i<24;i++){
+		portMapping[i] = GPIOA;
+		pinMapping[i] = GPIO10;
+	} */
 	
 	uint16_t aInput = gpio_port_read(GPIOA);
 	uint16_t bInput = gpio_port_read(GPIOB);
@@ -348,12 +419,12 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 				if ((levelMapping & (1 << i)) != 0){
 					//Active High
 					if ((GPIOInput & (pinMapping[i])) != 0) {//<<1)) != 0) {
-						buttons[i/8] |= 1 << (i - 8*(i/8)); //FIX ME replace with  i % 8 ?
+						setBit(buttons, i);
 						}
 				} else{
 					//Active low
 					if ((GPIOInput & (pinMapping[i])) == 0) {//<<1)) == 0) {
-						buttons[i/8] |= 1 << (i - 8*(i/8)); //FIX ME replace with  i % 8 ?
+						setBit(buttons, i);
 						}
 				}
 			} else{
@@ -363,7 +434,7 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 					uint8_t buttonVal = 0x00;//readOne(mux1, pinMapping[i]);
 					if (buttonVal >= 0x7F){
 						//set the button
-						buttons[i/8] |= 1 << (i - 8*(i/8)); //FIX ME replace with  i % 8 ?
+						setBit(buttons, i);
 					}
 				} else{
 					//no button mapping in this section
@@ -373,8 +444,6 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 		}	
 	}
 }
-
-
 void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	
 	bool hatSwitch = true;
@@ -588,10 +657,9 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 void testOutputs(uint8_t inputs[], uint8_t numInputs){
 	//for (int i=0;i<numInputs;i++){
 	//	inputs[i] = testValue;
-	//}
+	// }
 	//inputs[0] = testValue;
-	inputs[6] = testValue;
-	inputs[7] = testValue;
+	inputs[14] = testValue;
 	testValue++;
 	if (testValue >255){ //not sure how a uint8_t overflows
 		testValue = 0;
@@ -600,6 +668,9 @@ void testOutputs(uint8_t inputs[], uint8_t numInputs){
 
 void sys_tick_handler(void)
 {
+	
+	static bool initialised = false;
+	
 	uint8_t buf[13 + 1 + 5];
 	for (int i=0;i<(13+1+5);i++){
 		buf[i] = 0xFF;
@@ -608,8 +679,85 @@ void sys_tick_handler(void)
 	
 	pollSensors(buf, 13+1+5);
 	//testOutputs(buf, 13+1+5);
-	buf[6] = buf[0];
-	buf[7] = buf[1];
 
+
+	writeToEndpoint(0x81, buf, sizeof(buf));
+	
+	uint8_t *buttons = &buf[13+1];
+	
+ 	//Setup debounced buttons & sequence detection	
+	uint8_t debouncedButtons[5];
+	static uint8_t oldButtons[5];
+	uint8_t buttonUp[5];
+	for (int i=0;i<5;i++){
+		debouncedButtons[i] = 0;
+	}
+	//Setup debouncing state integrator
+	static uint8_t buttonIntegratorCount[5*8];
+	
+	uint8_t sequence[] = {9, 10, 9, 10, 9};
+	static uint8_t sequenceState;
+	uint8_t nextSequenceState = 0;
+	uint8_t sequenceLength = 5;
+	uint8_t maxSequenceTimeout = 0xFF;//TODO Look at systick interval and convert this to an equivalent number for a fixed number of seconds.
+	static uint8_t sequenceTimeout; 
+	
+	// Initialisation of static variables
+	if (!initialised){
+		for (int i=0;i<5*8;i++){
+			buttonIntegratorCount[i] = 0;
+		}
+		for (int i=0;i<5;i++){
+			oldButtons[i] = 0x00;
+		}
+		sequenceState = 0;
+		sequenceTimeout = maxSequenceTimeout;
+		initialised = true;
+	}
+	//Start sequence detection
+	debounceButtons(buttons, 5, debouncedButtons, buttonIntegratorCount);
+	memcpy(&buf[13+1], debouncedButtons, 5);
+	
+	
+	//Then get button up
+	for (int i=0;i<5;i++){
+		buttonUp[i] = (oldButtons[i] & !(debouncedButtons[i]));
+	}
+	memcpy(oldButtons, debouncedButtons, 5);
+	//detect sequence
+	uint8_t buttonInd = sequence[sequenceState]/8;
+	if (buttons[buttonInd] & (1 << (sequence[sequenceState] - 8*(sequence[sequenceState]/8)))) {
+		// This stage of the sequence has button-up'ed
+		nextSequenceState = sequenceState + 1;
+		sequenceTimeout = maxSequenceTimeout; //reset timeout
+		if (sequenceState == sequenceLength){
+			//Matched! as at the end of the sequence
+			buf[0] = 0xFF;
+			buf[1] = 0xFF;
+			buf[2] = 0xFF;
+			buf[3] = 0xFF;
+			buf[4] = 0xFF;
+			buf[5] = 0xFF;
+			buf[6] = 0xFF;
+			buf[7] = 0xFF;
+			nextSequenceState = 0;
+		}
+
+	} else{
+		nextSequenceState = sequenceState;
+	}
+	if (nextSequenceState == sequenceState){
+		// didn't actually match or anything
+		//	hence decrement timer
+		sequenceTimeout--;
+		if (sequenceTimeout==0){
+			//reset back to start
+			nextSequenceState = 0;
+			sequenceTimeout = maxSequenceTimeout;
+		}
+	}
+	sequenceState = nextSequenceState;
+	
+	
 	writeToEndpoint(0x81, buf, sizeof(buf));
 }
