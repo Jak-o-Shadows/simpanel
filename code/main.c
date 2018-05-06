@@ -542,22 +542,6 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	inputs[11] = readOne(mux1, 6);
 	inputs[12] = readOne(mux1, 7);
 	
-	//trim
-	uint8_t trimOutMap[] = {0, 1, 4, 5};
-	uint8_t trimInMap[] = {8, 9, 11, 12};
-	
- 	int testVal;
-	for (int i=0;i<0;i++){
-		testVal = inputs[trimOutMap[i]] + (inputs[trimInMap[i]]-0x7F)/2;
-		//have to check against overflow because wrapping around is not desirable behaviour
-		if (testVal > 0xFF){
-			inputs[trimOutMap[i]] = 0xFF;
-		} else if (testVal < 0) {
-			inputs[trimOutMap[i]] = 0;
-		} else {
-			inputs[trimOutMap[i]] = (uint8_t) testVal;
-		}
-	} 
 	
 	
 	//apply deadzones
@@ -591,7 +575,22 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 		}
 	}
 	
+	//trim
+	uint8_t trimOutMap[] = {0, 1, 4, 5};
+	uint8_t trimInMap[] = {8, 9, 11, 12};
 	
+ 	int testVal;
+	for (int i=0;i<4;i++){
+		testVal = inputs[trimOutMap[i]] + (inputs[trimInMap[i]]-0x7F)/2;
+		//have to check against overflow because wrapping around is not desirable behaviour
+		if (testVal > 0xFF){
+			inputs[trimOutMap[i]] = 0xFF;
+		} else if (testVal < 0) {
+			inputs[trimOutMap[i]] = 0;
+		} else {
+			inputs[trimOutMap[i]] = (uint8_t) testVal;
+		}
+	}
 	
 	
 	
