@@ -21,6 +21,8 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
+
 #include <unicore-mx/stm32/rcc.h>
 #include <unicore-mx/stm32/gpio.h>
 #include <unicore-mx/stm32/adc.h>
@@ -36,7 +38,8 @@
 #include "lowlevel/usb.h"
 
 #include "lowlevel/analogMux.h"
-
+#include "midlevel/bitoperators.h"
+#include "midlevel/buttonProc.h"
 
 struct AnalogMuxConfig mux1;
 
@@ -47,7 +50,8 @@ void nonUSBSetup(void);
 void readAndPackButtons(uint8_t buttons[], uint8_t numButtons);
 void pollSensors(uint8_t inputs[], uint8_t numInputs);
 void testOutputs(uint8_t inputs[], uint8_t numInputs);
-void debounceButtons(uint8_t buttons[], uint8_t numButtons, uint8_t buttonState[], uint8_t buttonIntegratorCount[]);
+
+
 void nonUSBSetup(void){
 	
 	//Turn off JTAG - ie. allow PA15 (JTDI) & PB3 (JTDO) to be used as
@@ -214,71 +218,6 @@ uint8_t readChannel(uint32_t ADC, uint8_t channel){
 	return joy;
 	
 }
-
-
-void setBit(uint8_t A[], uint8_t k) {
-	// Set the kth bit in array A of uint8
-	A[k/8] |= 1 << (k%8);
-}
-
-void clearBit(uint8_t A[], uint8_t k){
-	// Clear the kth bit in array A of uint8
-	A[k/8] &= ~(1 << (k%8));
-}
-
-bool getBit(uint8_t A[], uint8_t k){
-	// Get the kth bit in array A of uint8
-	return (bool) (A[k/8] & (1 << (k%8)) );
-}
-
-
-void debounceButtons(uint8_t buttons[], uint8_t numButtons, uint8_t buttonState[], uint8_t buttonIntegratorCount[]){
-	// Debounce the given buttons
-	//	Simply checks if the button state is consistent for a given number of counts
-	//INPUTS:
-	//	buttons
-		//the array of uint8_t's. Each bit is the button state
-	//	numButtons
-		//number of buttons. The array "buttons" is 1/8th of this
-	//	buttonState
-		//Each bit is button state. is the output
-	//	buttontIntegratorCount
-	//		The count of the integrator for each button.
-	//Inspired by http://www.kennethkuhn.com/electronics/debounce.c
-	//	ie. that, but in a loop
-	
-	uint8_t MAXIMUM = 30;
-	
-	for (int i=0;i<numButtons*8;i++){
-		bool input  = getBit(buttons, i);
-		//step 1: Update the integrator based on the input signal. Note that the
-		// integrator follows the input, decreasing or increasing towards the
-		// limits as determined by the input state (0 or 1). 
-		if (!input){
-			if (buttonIntegratorCount[i] > 0){
-				buttonIntegratorCount[i]--;
-			}
-		} else if (buttonIntegratorCount[i] < MAXIMUM) {
-			buttonIntegratorCount[i]++;
-		}
-		
-		//Step 2: Update the output state based on the integrator.  Note that
-		// the output will only change states if the integrator has reached a
-		// limit, either 0 or MAXIMUM.
-		if (buttonIntegratorCount[i] == 0){
-			clearBit(buttonState, i); //clear the button
-		} else if (buttonIntegratorCount[i] >= MAXIMUM){
-			buttonIntegratorCount[i] = MAXIMUM; //just in case it is >MAXIMUM by corruption
-			setBit(buttonState, i); //set it
-		}
-				
-		
-		
-	}
-
-}
-
-
 
 
 
@@ -671,22 +610,26 @@ void sys_tick_handler(void)
 	
 	static bool initialised = false;
 	
+	// Clear the control handler buffer
 	uint8_t buf[13 + 1 + 5];
 	for (int i=0;i<(13+1+5);i++){
 		buf[i] = 0xFF;
 	}
-	//buttonReadTest();
 	
 	pollSensors(buf, 13+1+5);
 	//testOutputs(buf, 13+1+5);
-
-
-	writeToEndpoint(0x81, buf, sizeof(buf));
+	
+	// Submit it to USB
+	//writeToEndpoint(0x81, buf, sizeof(buf));
+	
+	
+	// Test Debouncing things
 	
 	uint8_t *buttons = &buf[13+1];
 	
- 	//Setup debounced buttons & sequence detection	
+ 	//Setup debounced buttons & sequence detection
 	uint8_t debouncedButtons[5];
+	// Store previous button state to detect button up events
 	static uint8_t oldButtons[5];
 	uint8_t buttonUp[5];
 	for (int i=0;i<5;i++){
@@ -704,29 +647,33 @@ void sys_tick_handler(void)
 	
 	// Initialisation of static variables
 	if (!initialised){
+		// buttonIntegratorCount (the integral of button status) = 0
 		for (int i=0;i<5*8;i++){
 			buttonIntegratorCount[i] = 0;
 		}
-		for (int i=0;i<5;i++){
+		// The previous buttons
+		for (int i=0;i<40/8;i++){
 			oldButtons[i] = 0x00;
 		}
+		//Where we are in detecting the sequence
 		sequenceState = 0;
 		sequenceTimeout = maxSequenceTimeout;
 		initialised = true;
 	}
 	//Start sequence detection
-	debounceButtons(buttons, 5, debouncedButtons, buttonIntegratorCount);
-	memcpy(&buf[13+1], debouncedButtons, 5);
-	
+	// Debounce the button inputs
+	debounceButtons(buttons, 40, debouncedButtons, buttonIntegratorCount);
+	memcpy(&buf[13+1], debouncedButtons, 40/8);
 	
 	//Then get button up
-	for (int i=0;i<5;i++){
+	for (int i=0;i<40/8;i++){
+		buttonUp[i] = 0x00;
 		buttonUp[i] = (oldButtons[i] & !(debouncedButtons[i]));
 	}
-	memcpy(oldButtons, debouncedButtons, 5);
-	//detect sequence
+	memcpy(oldButtons, debouncedButtons, 40/8);
+/* 	//detect sequence
 	uint8_t buttonInd = sequence[sequenceState]/8;
-	if (buttons[buttonInd] & (1 << (sequence[sequenceState] - 8*(sequence[sequenceState]/8)))) {
+	if (getBit(buttons, sequence[sequenceState])) {
 		// This stage of the sequence has button-up'ed
 		nextSequenceState = sequenceState + 1;
 		sequenceTimeout = maxSequenceTimeout; //reset timeout
@@ -756,8 +703,8 @@ void sys_tick_handler(void)
 			sequenceTimeout = maxSequenceTimeout;
 		}
 	}
-	sequenceState = nextSequenceState;
+	sequenceState = nextSequenceState; */
 	
-	
+	buf[15] = buttonUp[0];
 	writeToEndpoint(0x81, buf, sizeof(buf));
 }
