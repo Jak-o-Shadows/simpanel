@@ -173,11 +173,6 @@ void nonUSBSetup(void){
 	//	PB8:	I2C1_SCL
 	//	PB9:	I2C1_SDA
 	
-	
-	
-	// Temporary output pin for testing
-	rcc_periph_clock_enable(RCC_GPIOA);
-	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO1);
 }
 
 
@@ -406,7 +401,7 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	deadzone[11] = 50;
 	deadzone[12] = 50;
 
-	
+	// In remapping to avoid the deadzone
 	uint8_t correctionStart[13];
 	for (int i=0;i<13;i++){
 		correctionStart[i] = deadzone[i];
@@ -421,7 +416,6 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	// Buttons
 	readAndPackButtons(&inputs[13+1], numInputs-1-13);
 	
-	return;
 	uint8_t *hat = &inputs[13];
 	
 	//return;
@@ -553,7 +547,7 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	uint8_t trimInMap[] = {8, 9, 11, 12};
 	
  	int testVal;
-	for (int i=0;i<4;i++){
+	for (int i=0;i<0;i++){
 		testVal = inputs[trimOutMap[i]] + (inputs[trimInMap[i]]-0x7F)/2;
 		//have to check against overflow because wrapping around is not desirable behaviour
 		if (testVal > 0xFF){
@@ -573,15 +567,25 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 			inputs[i] = 0xFF/2;
 		} else {
 			//apply deadzone correction
+			//	Remap values that are outside of the deadzone
+			//		to behave as if no deadzone were present
 			if (inputs[i] > 0xFF/2) {
 				// |-----|----x-----|
 				// a     b          c
 				// val = (x-b)*(c-a)/(c-b) + a
+				//	x = input
+				//	b = half+correction (correction = deadzone/2)
+				//	c = full
+				//	a = half
 				inputs[i] = 0xFF/2 + (inputs[i] - (0xFF/2 + correctionStart[i])) * (0xFF-0xFF/2)/(0xFF - (0xFF/2+correctionStart[i]));
 			} else {
 				// |-----x-----|-----|
 				// c           b     a
 				// val = (x-b)*(c-a)/(c-b) + a
+				//	x = input
+				//	b = half-correction (correction = deadzone/2)
+				//	c = 0
+				//	a = half
 				inputs[i] = 0xFF/2 + (inputs[i] - (0xFF/2 - correctionStart[i])) * (0 - 0xFF/2)/(0 - (0xFF/2-correctionStart[i]));
 			}
 		}
