@@ -20,12 +20,12 @@
 #ifndef USBHID_TARGET_H
 #define USBHID_TARGET_H
 
-#include <unicore-mx/usbd/usbd.h>
+#include <libopencm3/usb/usbd.h>
 
 /* these functions are provided by target */
 
 extern void usbhid_target_init(void);
-extern const usbd_backend *usbhid_target_usb_driver(void);
+extern const usbd_driver *usbhid_target_usb_driver(void);
 
 /* see main() in usbhid.c for more on this */
 extern void usbhid_target_usbd_after_init_and_before_first_poll(void);

@@ -18,12 +18,12 @@
  */
 
 #include <stdlib.h>
-#include <unicore-mx/stm32/rcc.h>
-#include <unicore-mx/stm32/gpio.h>
-#include <unicore-mx/stm32/spi.h>
-#include <unicore-mx/stm32/otg_fs.h>
-#include <unicore-mx/usbd/usbd.h>
-#include <unicore-mx/cm3/scb.h>
+#include <libopencm3/stm32/rcc.h>
+#include <libopencm3/stm32/gpio.h>
+#include <libopencm3/stm32/spi.h>
+#include <libopencm3/stm32/otg_fs.h>
+#include <libopencm3/usb/usbd.h>
+#include <libopencm3/cm3/scb.h>
 #include "usbhid-target.h"
 
 void usbhid_target_init(void)
@@ -44,9 +44,9 @@ void usbhid_target_usbd_after_init_and_before_first_poll(void)
 		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO15);
 }
 
-const usbd_backend *usbhid_target_usb_driver(void)
+const usbd_driver *usbhid_target_usb_driver(void)
 {
-	return USBD_STM32_FSDEV_V1;
+	return &st_usbfs_v1_usb_driver;
 }
 
 void usbhid_detach_complete_before_scb_reset_core(void)

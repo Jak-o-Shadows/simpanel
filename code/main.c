@@ -23,17 +23,15 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include <unicore-mx/stm32/rcc.h>
-#include <unicore-mx/stm32/gpio.h>
-#include <unicore-mx/stm32/adc.h>
+#include <libopencm3/stm32/rcc.h>
+#include <libopencm3/stm32/gpio.h>
+#include <libopencm3/stm32/adc.h>
 
 
-
-#include <unicore-mx/cm3/nvic.h>
-#include <unicore-mx/cm3/systick.h>
-#include <unicore-mx/usbd/usbd.h>
-#include <unicore-mx/usb/class/hid.h>
-#include <unicore-mx/usbd/misc/string.h>
+#include <libopencm3/cm3/nvic.h>
+#include <libopencm3/cm3/systick.h>
+#include <libopencm3/usb/usbd.h>
+#include <libopencm3/usb/hid.h>
 #include "lowlevel/usbhid-target.h"
 #include "lowlevel/usb.h"
 
@@ -597,11 +595,9 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 }
 
 void testOutputs(uint8_t inputs[], uint8_t numInputs){
-	//for (int i=0;i<numInputs;i++){
-	//	inputs[i] = testValue;
-	// }
-	//inputs[0] = testValue;
-	inputs[14] = testValue;
+	for (int i=0;i<numInputs;i++){
+		inputs[i] = testValue;
+	 }
 	testValue++;
 	if (testValue >255){ //not sure how a uint8_t overflows
 		testValue = 0;
@@ -612,7 +608,7 @@ void sys_tick_handler(void)
 {
 	
 	static bool initialised = false;
-	
+
 	// Clear the control handler buffer
 	uint8_t buf[13 + 1 + 5];
 	for (int i=0;i<(13+1+5);i++){
@@ -674,7 +670,7 @@ void sys_tick_handler(void)
 		buttonUp[i] = (oldButtons[i] & !(debouncedButtons[i]));
 	}
 	memcpy(oldButtons, debouncedButtons, 40/8);
-/* 	//detect sequence
+ 	//detect sequence
 	uint8_t buttonInd = sequence[sequenceState]/8;
 	if (getBit(buttons, sequence[sequenceState])) {
 		// This stage of the sequence has button-up'ed
@@ -706,8 +702,8 @@ void sys_tick_handler(void)
 			sequenceTimeout = maxSequenceTimeout;
 		}
 	}
-	sequenceState = nextSequenceState; */
+	sequenceState = nextSequenceState; 
 	
 	buf[15] = buttonUp[0];
-	writeToEndpoint(0x81, buf, sizeof(buf));
+	writeToEndpoint(0x81, buf, sizeof(buf)); 
 }

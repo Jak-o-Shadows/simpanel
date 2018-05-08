@@ -12,8 +12,8 @@ HL_LIBS =
 include Makefile.config
 
 #LibopenCM3 location
-libopenCM3Path = ./unicore-mx
-#./libopencm3
+#libopenCM3Path = ./unicore-mx
+libopenCM3Path = ./libopencm3
 SRCLIBDIR = $(libopenCM3Path)
 
 INCLUDE_DIR = $(libopenCM3Path)/include
@@ -35,8 +35,8 @@ LDFLAGS		+= -T$(LDSCRIPT)
 LDFLAGS		+= -Wl,-Map=$(*).map
 LDFLAGS		+= -Wl,--gc-sections
 
-LIBNAME = ucmx_stm32f1
-#LIBNAME = opencm3_stm32f1
+#LIBNAME = ucmx_stm32f1
+LIBNAME = opencm3_stm32f1
 #LIBNAME = opencm3_stm32f4
 
 
@@ -48,7 +48,8 @@ OBJS += $(BINARY).o $(HL_LIBS:.c=.o)
 
 
 
-toolchainPath ?= ~/arm-none-eabi/bin/
+toolchainPath ?= 
+#~/arm-none-eabi/bin/
 #toolChainPath = 
 
 PREFIX		?= $(toolchainPath)arm-none-eabi
@@ -155,19 +156,14 @@ clean:
 
 
 openocd:;
-	openocd -f "openocd.cfg" -c "init" -c "halt" -c "reset halt"
+	openocd.exe -f "openocd.cfg" -c "init" -c "halt" -c "reset halt"
 
 debug: main.elf main.bin;
 	$(GDB) --eval-command="target ext:3335"  main.elf
 
 telnet:;
 	telnet localhost 4446
-
-
-    
-    
-    
-    
+       
 testecho:;
 	echo $(libopenCM3Path)
 	echo $(LD_PARAMS)

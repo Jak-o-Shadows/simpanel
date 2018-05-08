@@ -132,54 +132,20 @@ const struct usb_interface_descriptor hid_iface = {
 	.endpoint = &hid_endpoint,
 
 	.extra = &hid_function,
-	.extra_len = sizeof(hid_function),
+	.extralen = sizeof(hid_function),
 };
 
-#ifdef INCLUDE_DFU_INTERFACE
-const struct usb_dfu_descriptor dfu_function = {
-	.bLength = sizeof(struct usb_dfu_descriptor),
-	.bDescriptorType = DFU_FUNCTIONAL,
-	.bmAttributes = USB_DFU_CAN_DOWNLOAD | USB_DFU_WILL_DETACH,
-	.wDetachTimeout = 255,
-	.wTransferSize = 1024,
-	.bcdDFUVersion = 0x011A,
-};
-
-const struct usb_interface_descriptor dfu_iface = {
-	.bLength = USB_DT_INTERFACE_SIZE,
-	.bDescriptorType = USB_DT_INTERFACE,
-	.bInterfaceNumber = 1,
-	.bAlternateSetting = 0,
-	.bNumEndpoints = 0,
-	.bInterfaceClass = 0xFE,
-	.bInterfaceSubClass = 1,
-	.bInterfaceProtocol = 1,
-	.iInterface = 0,
-
-	.extra = &dfu_function,
-	.extra_len = sizeof(dfu_function),
-};
-#endif
 
 const struct usb_interface ifaces[] = {{
 	.num_altsetting = 1,
 	.altsetting = &hid_iface,
-#ifdef INCLUDE_DFU_INTERFACE
-}, {
-	.num_altsetting = 1,
-	.altsetting = &dfu_iface,
-#endif
 }};
 
 const struct usb_config_descriptor config[] = {{
 	.bLength = USB_DT_CONFIGURATION_SIZE,
 	.bDescriptorType = USB_DT_CONFIGURATION,
 	.wTotalLength = 0,
-#ifdef INCLUDE_DFU_INTERFACE
-	.bNumInterfaces = 2,
-#else
 	.bNumInterfaces = 1,
-#endif
 	.bConfigurationValue = 1,
 	.iConfiguration = 0,
 	.bmAttributes = 0xC0,
@@ -203,11 +169,9 @@ const struct usb_device_descriptor dev_descr = {
 	.iProduct = 2,
 	.iSerialNumber = 3,
 	.bNumConfigurations = 1,
-
-	.config = config
 };
 
-static const char *usb_strings_ascii[] = {
+static const char *usb_strings[] = {
 	"Black Sphere Technologies",
 	"JOYSTICK",
 	"DEMO",
@@ -236,68 +200,41 @@ static const char *usb_strings_ascii[] = {
 
 
 
-
-
-
-static enum usbd_control_result
-control_callback(usbd_device *dev, struct usbd_control_arg *arg)
+static int hid_control_request(usbd_device *dev, struct usb_setup_data *req, uint8_t **buf, uint16_t *len,
+			void (**complete)(usbd_device *dev, struct usb_setup_data *req))
 {
-	enum usbd_control_result result;
-
-	result = hid_control_request(dev, arg);
-
-#ifdef INCLUDE_DFU_INTERFACE
-	if (result == USBD_REQ_NEXT) {
-		result = dfu_control_request(dev, arg);
-	}
-#endif
-
-	return result;
-}
-
-int usb_strings(usbd_device *dev, struct usbd_get_string_arg *arg)
-{
-	(void)dev;
-	return usbd_handle_string_ascii(arg, usb_strings_ascii, 3);
-}
-
-int hid_control_request(usbd_device *dev, struct usbd_control_arg *arg)
-{
+	(void)complete;
 	(void)dev;
 
-	if(	(arg->setup.bmRequestType != 0x81) ||
-		(arg->setup.bRequest != USB_REQ_GET_DESCRIPTOR) ||
-		(arg->setup.wValue != 0x2200)) {
-		return USBD_REQ_NEXT;
-	}
+	if((req->bmRequestType != 0x81) ||
+	   (req->bRequest != USB_REQ_GET_DESCRIPTOR) ||
+	   (req->wValue != 0x2200))
+		return 0;
 
 	/* Handle the HID report descriptor. */
-	arg->buf = (uint8_t *)hid_report_descriptor;
-	if (arg->len > sizeof(hid_report_descriptor)) {
-		arg->len = sizeof(hid_report_descriptor);
-	}
+	*buf = (uint8_t *)hid_report_descriptor;
+	*len = sizeof(hid_report_descriptor);
 
-	return USBD_REQ_HANDLED;
+	return 1;
 }
 
 
 
-void hid_set_config(usbd_device *dev,
-				const struct usb_config_descriptor *cfg)
+static void hid_set_config(usbd_device *dev, uint16_t wValue)
 {
-	(void)cfg;
+	(void)wValue;
 
 	usbd_ep_setup(dev, 0x81, USB_ENDPOINT_ATTR_INTERRUPT, 4, NULL);
 
-#if defined(__ARM_ARCH_6M__)
-	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB);
-	/* SysTick interrupt every N clock pulses: set reload to N-1 */
-	systick_set_reload(99999*8);
-#else
+	usbd_register_control_callback(
+				dev,
+				USB_REQ_TYPE_STANDARD | USB_REQ_TYPE_INTERFACE,
+				USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
+				hid_control_request);
+
 	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB_DIV8);
 	/* SysTick interrupt every N clock pulses: set reload to N-1 */
 	systick_set_reload(99999);
-#endif
 	systick_interrupt_enable();
 	systick_counter_enable();
 }
@@ -352,13 +289,11 @@ usbhid_target_usbd_after_init_and_before_first_poll(void) { /* empty */ }
 void usbSetup(void){
 	usbhid_target_init();
 
-	usbd_dev = usbd_init(usbhid_target_usb_driver(), &dev_descr,
+	usbd_dev = usbd_init(usbhid_target_usb_driver(), &dev_descr, config, usb_strings, 3,
 		usbd_control_buffer, sizeof(usbd_control_buffer));
 
 	usbd_register_set_config_callback(usbd_dev, hid_set_config);
-	usbd_register_control_callback(usbd_dev, control_callback);
-	usbd_register_get_string_callback(usbd_dev, usb_strings);
-	
+
 	
 }
 

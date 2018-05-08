@@ -1,9 +1,9 @@
 
 #include <stdint.h>
 
-#include <unicore-mx/stm32/gpio.h>
-#include <unicore-mx/stm32/adc.h>
-#include <unicore-mx/stm32/rcc.h>
+#include <libopencm3/stm32/gpio.h>
+#include <libopencm3/stm32/adc.h>
+#include <libopencm3/stm32/rcc.h>
 
 struct AnalogMuxConfig {
 	uint32_t enPort;
