@@ -171,21 +171,52 @@ void nonUSBSetup(void){
 	//	PB8:	I2C1_SCL
 	//	PB9:	I2C1_SDA
 	
+	
+	//Debug flashing light:
+	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_50_MHZ,
+		      GPIO_CNF_OUTPUT_PUSHPULL, GPIO13);
+	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_50_MHZ,
+	      GPIO_CNF_OUTPUT_PUSHPULL, GPIO14);	
 }
 
 
 int main(void)
 {
+	rcc_clock_setup_in_hsi_out_48mhz();
+
+	//systick
+	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB_DIV8);
+	systick_set_reload(2999);
+	systick_interrupt_enable();
+	systick_counter_enable();
+	
 	
 	nonUSBSetup();
+	
+	rcc_periph_clock_enable(RCC_GPIOA);
+	/*
+	 * Vile hack to reenumerate, physically _drag_ d+ low.
+	 * do NOT do this if you're board has proper usb pull up control!
+	 * (need at least 2.5us to trigger usb disconnect)
+	 */
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ,
+		GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);
+	gpio_clear(GPIOA, GPIO12);
+	for (unsigned int i = 0; i < 800000; i++) {
+		__asm__("nop");
+	}
 	
 	usbSetup();
 
 
-	usbhid_target_usbd_after_init_and_before_first_poll();
+	//usbhid_target_usbd_after_init_and_before_first_poll();
 
 	while (1) {
+		gpio_toggle(GPIOC, GPIO14);
 		usbInLoop();//usbd_poll(usbd_dev);
+		for (int i=0;i<400;i++){
+			__asm__("nop");
+		}
 	}
 }
 
@@ -606,8 +637,8 @@ void testOutputs(uint8_t inputs[], uint8_t numInputs){
 
 void sys_tick_handler(void)
 {
-	
-	static bool initialised = false;
+	gpio_toggle(GPIOC, GPIO13);
+/* 	static bool initialised = false;
 
 	// Clear the control handler buffer
 	uint8_t buf[13 + 1 + 5];
@@ -705,5 +736,5 @@ void sys_tick_handler(void)
 	sequenceState = nextSequenceState; 
 	
 	buf[15] = buttonUp[0];
-	writeToEndpoint(0x81, buf, sizeof(buf)); 
+	writeToEndpoint(0x81, buf, sizeof(buf));  */
 }

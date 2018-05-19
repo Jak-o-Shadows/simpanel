@@ -224,19 +224,18 @@ static void hid_set_config(usbd_device *dev, uint16_t wValue)
 {
 	(void)wValue;
 
-	usbd_ep_setup(dev, 0x81, USB_ENDPOINT_ATTR_INTERRUPT, 4, NULL);
-
+	//usbd_ep_setup(dev, 0x81, USB_ENDPOINT_ATTR_INTERRUPT, 4, NULL);
+	usbd_ep_setup(usbd_dev, 0x81, USB_ENDPOINT_ATTR_BULK, 64, usbCallback);  //64 = BULK_EP_MAXPACKET in examples = wMaxPacketSize
+			
 	usbd_register_control_callback(
 				dev,
 				USB_REQ_TYPE_STANDARD | USB_REQ_TYPE_INTERFACE,
 				USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
 				hid_control_request);
+				
+	usbCallback(); //prime callback by doing it once
+	
 
-	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB_DIV8);
-	/* SysTick interrupt every N clock pulses: set reload to N-1 */
-	systick_set_reload(99999);
-	systick_interrupt_enable();
-	systick_counter_enable();
 }
 
 void __attribute__((weak))
@@ -308,6 +307,10 @@ void writeToEndpoint(uint8_t endpoint, uint8_t buf[], uint16_t len){
 }
 
 
+void usbCallback(void) {
+	uint8_t buf[13 + 1 + 5];
+	writeToEndpoint(0x81, buf, sizeof(buf)); 
+}
 
 
 

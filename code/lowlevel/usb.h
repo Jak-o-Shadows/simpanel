@@ -30,7 +30,7 @@ void usbInLoop(void);
 
 void writeToEndpoint(uint8_t endpoint, uint8_t buf[], uint16_t len);
 
-
+void usbCallback(void);
 
 
 

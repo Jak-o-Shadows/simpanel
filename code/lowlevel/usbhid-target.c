@@ -28,13 +28,13 @@
 
 void usbhid_target_init(void)
 {
-	rcc_clock_setup_in_hsi_out_48mhz();
+	//rcc_clock_setup_in_hsi_out_48mhz();
 
-	rcc_periph_clock_enable(RCC_GPIOA);
-	rcc_periph_clock_enable(RCC_AFIO);
+//	rcc_periph_clock_enable(RCC_GPIOA);
+//	rcc_periph_clock_enable(RCC_AFIO);
 
-	AFIO_MAPR |= AFIO_MAPR_SWJ_CFG_JTAG_OFF_SW_ON;
-	gpio_set_mode(GPIOA, GPIO_MODE_INPUT, 0, GPIO15);
+//	AFIO_MAPR |= AFIO_MAPR_SWJ_CFG_JTAG_OFF_SW_ON;
+//	gpio_set_mode(GPIOA, GPIO_MODE_INPUT, 0, GPIO15);
 }
 
 void usbhid_target_usbd_after_init_and_before_first_poll(void)
