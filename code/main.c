@@ -48,7 +48,7 @@ void nonUSBSetup(void);
 void readAndPackButtons(uint8_t buttons[], uint8_t numButtons);
 void pollSensors(uint8_t inputs[], uint8_t numInputs);
 void testOutputs(uint8_t inputs[], uint8_t numInputs);
-
+void usbUpdate(void);
 
 void nonUSBSetup(void){
 	
@@ -205,6 +205,8 @@ int main(void)
 	for (unsigned int i = 0; i < 800000; i++) {
 		__asm__("nop");
 	}
+	
+	setUSBCallback(&usbUpdate);
 	
 	usbSetup();
 
@@ -635,10 +637,8 @@ void testOutputs(uint8_t inputs[], uint8_t numInputs){
 	}
 }
 
-void sys_tick_handler(void)
-{
-	gpio_toggle(GPIOC, GPIO13);
-/* 	static bool initialised = false;
+void usbUpdate(void){
+	static bool initialised = false;
 
 	// Clear the control handler buffer
 	uint8_t buf[13 + 1 + 5];
@@ -736,5 +736,14 @@ void sys_tick_handler(void)
 	sequenceState = nextSequenceState; 
 	
 	buf[15] = buttonUp[0];
-	writeToEndpoint(0x81, buf, sizeof(buf));  */
+	writeToEndpoint(0x81, buf, sizeof(buf));
+	
+}
+
+
+
+void sys_tick_handler(void)
+{
+	gpio_toggle(GPIOC, GPIO13);
+
 }

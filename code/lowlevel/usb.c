@@ -27,7 +27,7 @@
 
 uint8_t usbd_control_buffer[128];
 
-
+void (*fun_ptr)(void) = &usbCallback;
 
 
 
@@ -225,7 +225,7 @@ static void hid_set_config(usbd_device *dev, uint16_t wValue)
 	(void)wValue;
 
 	//usbd_ep_setup(dev, 0x81, USB_ENDPOINT_ATTR_INTERRUPT, 4, NULL);
-	usbd_ep_setup(usbd_dev, 0x81, USB_ENDPOINT_ATTR_BULK, 64, usbCallback);  //64 = BULK_EP_MAXPACKET in examples = wMaxPacketSize
+	usbd_ep_setup(usbd_dev, 0x81, USB_ENDPOINT_ATTR_BULK, 64, fun_ptr);  //64 = BULK_EP_MAXPACKET in examples = wMaxPacketSize
 			
 	usbd_register_control_callback(
 				dev,
@@ -233,7 +233,7 @@ static void hid_set_config(usbd_device *dev, uint16_t wValue)
 				USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
 				hid_control_request);
 				
-	usbCallback(); //prime callback by doing it once
+	fun_ptr(); //prime callback by doing it once
 	
 
 }
@@ -312,6 +312,9 @@ void usbCallback(void) {
 	writeToEndpoint(0x81, buf, sizeof(buf)); 
 }
 
+void setUSBCallback(void (*fun)(void) ){
+	fun_ptr = fun;
+}
 
 
 
