@@ -215,13 +215,13 @@ int main(void)
 
 	while (1) {
 		gpio_toggle(GPIOC, GPIO14);
-		usbInLoop();//usbd_poll(usbd_dev);
+		//usbInLoop();//usbd_poll(usbd_dev);
 		for (int i=0;i<400;i++){
 			__asm__("nop");
 		}
 	}
 }
-
+/*
 void buttonReadTest(void){
 	uint16_t aInput = gpio_port_read(GPIOA);
 	uint16_t status = aInput & (GPIO10<<1);
@@ -352,10 +352,10 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 //	portMapping[23] = 0xFF;//analog mux1, toggle
 //	pinMapping[23] = 14;
 
-/* 	for (int i=0;i<24;i++){
-		portMapping[i] = GPIOA;
-		pinMapping[i] = GPIO10;
-	} */
+// 	for (int i=0;i<24;i++){
+//		portMapping[i] = GPIOA;
+//		pinMapping[i] = GPIO10;
+//	} 
 	
 	uint16_t aInput = gpio_port_read(GPIOA);
 	uint16_t bInput = gpio_port_read(GPIOB);
@@ -409,6 +409,8 @@ void readAndPackButtons(uint8_t buttons[], uint8_t numButtons){
 		}	
 	}
 }
+
+
 void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	
 	bool hatSwitch = true;
@@ -625,7 +627,7 @@ void pollSensors(uint8_t inputs[], uint8_t numInputs){
 	
 	
 	
-}
+} 
 
 void testOutputs(uint8_t inputs[], uint8_t numInputs){
 	for (int i=0;i<numInputs;i++){
@@ -635,9 +637,19 @@ void testOutputs(uint8_t inputs[], uint8_t numInputs){
 	if (testValue >255){ //not sure how a uint8_t overflows
 		testValue = 0;
 	}
-}
+} */
 
 void usbUpdate(void){
+	// Fake data is all I need
+	uint8_t buf[13 + 1 + 5];
+	for (int i=0;i<(13+1+5);i++){
+		buf[i] = testValue;
+		testValue++;
+	}
+	writeToEndpoint(0x81, buf, sizeof(buf));
+	
+	/* 
+	
 	static bool initialised = false;
 
 	// Clear the control handler buffer
@@ -736,7 +748,7 @@ void usbUpdate(void){
 	sequenceState = nextSequenceState; 
 	
 	buf[15] = buttonUp[0];
-	writeToEndpoint(0x81, buf, sizeof(buf));
+	writeToEndpoint(0x81, buf, sizeof(buf)); */
 	
 }
 

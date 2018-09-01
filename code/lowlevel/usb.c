@@ -263,24 +263,6 @@ usbhid_target_usbd_after_init_and_before_first_poll(void) { /* empty */ }
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 //USB is all tucked away now - therefore things like usbd_dev are not in
 //the namespace of the main file. Therefore need some helper functins.
 
@@ -292,6 +274,9 @@ void usbSetup(void){
 		usbd_control_buffer, sizeof(usbd_control_buffer));
 
 	usbd_register_set_config_callback(usbd_dev, hid_set_config);
+	
+	//Enable interrupt, so don't need to pull in main loop
+	nvic_enable_irq(NVIC_USB_LP_CAN_RX0_IRQ);
 
 	
 }
@@ -317,7 +302,10 @@ void setUSBCallback(void (*fun)(void) ){
 }
 
 
-
+void usb_lp_can_rx0_isr(void){
+	// Interrupt handler for low priority USB events.
+	usbd_poll(usbd_dev);
+}
 
 
 

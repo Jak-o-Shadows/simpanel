@@ -34,7 +34,7 @@ void usbCallback(void);
 
 void setUSBCallback(void (*fun)(void) );
 
-
+void usb_lp_can_rx0_isr(void);
 
 
 
