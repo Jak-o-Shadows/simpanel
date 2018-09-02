@@ -2,23 +2,21 @@
 
 #My includes/own library location
 ROOT = ./
-LOWLEVEL= $(ROOT)lowlevel
-MIDLEVEL = $(ROOT)midlevel
-HIGHLEVEL= $(ROOT)highlevel
-SUBHIGH = 
-SUBMID = 
-#Use a separate file to keep track of own includes
-HL_LIBS = 
-include Makefile.config
+TEST_DIR = $(ROOT)tests
 
 #LibopenCM3 location
-#libopenCM3Path = ./unicore-mx
 libopenCM3Path = ./libopencm3
 SRCLIBDIR = $(libopenCM3Path)
 
-INCLUDE_DIR = $(libopenCM3Path)/include
-LIB_DIR = $(libopenCM3Path)/lib
-SCRIPT_DIR = $(libopenCM3)/scripts
+HARDWARE_INCLUDE_DIR = $(libopenCM3Path)/include
+HARDWARE_LIB_DIR = $(libopenCM3Path)/lib
+HARDWARE_SCRIPT_DIR = $(libopenCM3)/scripts
+
+
+#Use a separate file to keep track of own includes
+include Makefile.config
+
+
 
 ######Device specific things
 DEVICE = stm32f103c8t6
@@ -30,7 +28,7 @@ ARCH_FLAGS =
 #uses libopencm3 to make a .ld file for the specified device
 LDFLAGS		?= 
 LDFLAGS		+= --static -nostartfiles
-LDFLAGS		+= -L$(LIB_DIR)
+LDFLAGS		+= -L$(HARDWARE_LIB_DIR)
 LDFLAGS		+= -T$(LDSCRIPT)
 LDFLAGS		+= -Wl,-Map=$(*).map
 LDFLAGS		+= -Wl,--gc-sections
@@ -44,7 +42,7 @@ LIBNAME = opencm3_stm32f1
 
 #what is the main file 
 BINARY = main
-OBJS += $(BINARY).o $(HL_LIBS:.c=.o)
+OBJS += $(BINARY).o $(HL_LIBS:.c=.o) $(HARDWARE_LIBS:.c=.o)
 
 
 
@@ -83,12 +81,7 @@ CFLAGS += -DSTM32F1
 
 
 #Includes
-CFLAGS += -I $(INCLUDE_DIR)
-CFLAGS += -I $(HIGHLEVEL)
-CFLAGS += -I $(MIDLEVEL)
-CFLAGS += -I $(LOWLEVEL)
-CFLAGS += -I $(SUBHIGH)
-CFLAGS += -I $(SUBMID)
+CFLAGS += $(foreach d, $(INCLUDE_FOLDERS), -I$d)
 
 
 LDLIBS		+= -l$(LIBNAME)
@@ -118,6 +111,11 @@ flash: $(BINARY).flash
 #main.elf: $(OBJS) 
 #	$(LD) $(LDFLAGS) $(ARCH_FLAGS) $(OBJS) $(LDLIBS) -o $(*).elf
 
+test:
+	make -C $(TEST_DIR)
+
+test_clean:
+	make -C $(TEST_DIR) clean
 
 %.images: %.bin %.hex %.srec %.list %.map
 	@#printf "*** $* images generated ***\n"
@@ -165,7 +163,5 @@ telnet:;
 	telnet localhost 4446
        
 testecho:;
-	echo $(libopenCM3Path)
-	echo $(LD_PARAMS)
-	echo $(HL_LIBS)
+	echo $(INCLUDE_DIRS)
 	echo $(CFLAGS)
