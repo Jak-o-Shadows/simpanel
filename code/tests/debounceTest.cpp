@@ -1,11 +1,8 @@
 
-#include <iostream>
-
 #include "CppUTest/TestHarness.h"
 //#include "CppUTest/TestOutput.h"
 
 #include "../midlevel/buttonProc.h"
-
 
 
 #define NUMBUTTONS 16
@@ -58,7 +55,7 @@ TEST(DebounceTest, noInput)
 			CHECK_EQUAL(expectedIntegratorCount[button_num], buttonIntegratorCount[button_num]);
 		}
 	}
-} 
+}
 
 
 TEST(DebounceTest, simple_incrementing)
@@ -66,21 +63,20 @@ TEST(DebounceTest, simple_incrementing)
 	// Test whether it will count up to being triggered
 	
 	//Set the buttons to be high
-	uint8_t buttonsRaw[NUMBUTTONS/8];
-	for (int i=0;i<NUMBUTTONS;i++){
+	for (int i=0;i<NUMBUTTONS/8;i++){
 		buttonsRaw[i] = 0xFF;
 	}
 	// 3x high
 	debounceButtons(buttonsRaw, numButtons, buttonsState, buttonIntegratorCount);
 	debounceButtons(buttonsRaw, numButtons, buttonsState, buttonIntegratorCount);
 	debounceButtons(buttonsRaw, numButtons, buttonsState, buttonIntegratorCount);
-	// Then check status
-	for (int button_ind=0;button_ind<NUMBUTTONS/8;button_ind++){
-		CHECK_EQUAL(0, buttonsState[button_ind]);
-	}
 	// Then check integrator count
 	for (int button_num=0;button_num<NUMBUTTONS;button_num++){
 		CHECK_EQUAL(3, buttonIntegratorCount[button_num]);
+	}
+	// Then check status
+	for (int button_ind=0;button_ind<NUMBUTTONS/8;button_ind++){
+		CHECK_EQUAL(0, buttonsState[button_ind]);
 	}
 	
 	// Add another 2x to show it should now be high
