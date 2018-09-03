@@ -32,8 +32,8 @@ BROWSER = explorer
 CSRCS = $(foreach d, $(HL_LIBS), $(PROJECT_DIR)/$d)
 COBJS = $(CSRCS:.c=.o)
 
-TEST_CXXSRCS = $(TEST_DIR)/main.cpp $(TEST_DIR)/debounceTest.cpp
-TEST_CXXOBJS = $(TEST_DIR)/main.o $(TEST_DIR)/debounceTest.o
+TEST_CXXSRCS = $(TEST_DIR)/main.cpp $(TEST_DIR)/debounceTest.cpp $(TEST_DIR)/bitOperatorsTest.cpp
+TEST_CXXOBJS = $(TEST_DIR)/main.o $(TEST_DIR)/debounceTest.o $(TEST_DIR)/bitOperatorsTest.o
 
 ALL_OBJS = $(TEST_CXXOBJS) $(COBJS)
 
